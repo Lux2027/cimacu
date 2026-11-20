@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1b2a4a">
 <title>Cimacu</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -20,7 +20,8 @@
   <div id="hudR">
     <span id="money"><i class="cim big"></i><b id="moneyNum">0</b></span>
     <div id="hudBtns">
-      <button id="bag" class="hbtn" aria-label="Rucksack öffnen">🎒</button>
+      <button id="charBtn" class="hbtn" aria-label="Charakter öffnen">👤</button>
+      <button id="bag" class="hbtn" aria-label="Inventar öffnen">🎒</button>
       <button id="chatBtn" class="hbtn" aria-label="Chat öffnen">💬</button>
     </div>
   </div>
@@ -41,15 +42,16 @@
 <!-- Rucksack -->
 <div id="inv" class="overlay" hidden>
   <div class="sheet">
-    <div class="sheetHead"><span>🎒 Rucksack</span><button class="closeBtn" data-close="inv" aria-label="Schließen">✕</button></div>
+    <div class="sheetHead"><span id="invTitle">🎒 Inventar</span><button class="closeBtn" data-close="inv" aria-label="Schließen">✕</button></div>
     <div id="invTabs" class="tabs">
-      <button data-tab="items" class="on">Rohstoffe</button>
+      <button data-tab="inv" class="on">Inventar</button>
+      <button data-tab="char">Charakter</button>
       <button data-tab="tools">Werkzeug</button>
-      <button data-tab="hero">Held</button>
       <button data-tab="craft">Bauen</button>
       <button data-tab="ach">Erfolge</button>
     </div>
     <div id="invBody" class="body"></div>
+    <div id="itemPop" hidden></div>
   </div>
 </div>
 
@@ -100,6 +102,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.0.0/babylon.js"></script>
-<script src="game.js?v=5"></script>
+<script src="game.js?v=7"></script>
 </body>
 </html>

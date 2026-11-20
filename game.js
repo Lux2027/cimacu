@@ -93,13 +93,39 @@
     a4: { slot: 'armor', name: 'Kristallrüstung', e: '🦺', price: 1100, def: 14, color: '#5ff2ff', pads: true, glow: true },
     s1: { slot: 'shield', name: 'Holzschild', e: '🛡️', price: 25, def: 2, color: '#a8743f' },
     s2: { slot: 'shield', name: 'Eisenschild', e: '🛡️', price: 150, def: 4, color: '#c9ced8' },
-    s3: { slot: 'shield', name: 'Goldschild', e: '🛡️', price: 380, def: 7, color: '#ffc533' }
+    s3: { slot: 'shield', name: 'Goldschild', e: '🛡️', price: 380, def: 7, color: '#ffc533' },
+    // Kleidung (verändert das Aussehen; ablegen geht nur bis zur Standardkleidung)
+    c1: { slot: 'clothes', name: 'Wanderkleidung', e: '👕', price: 40, def: 1, color: '#4f7a3a', shirt: '#4f7a3a', pants: '#5a4630', desc: 'Bequem für lange Wege' },
+    c2: { slot: 'clothes', name: 'Edles Gewand', e: '👘', price: 140, def: 1, sell: 0.05, color: '#7a1f4f', shirt: '#7a1f4f', pants: '#2a2a3a', belt: '#ffd23f', desc: '+5 % Verkaufspreis' },
+    c3: { slot: 'clothes', name: 'Pelzmantel', e: '🧥', price: 160, def: 3, color: '#e8dcc8', shirt: '#e8dcc8', pants: '#6b5a4a', scarf: '#c0392b', desc: 'Warm und robust (Eisland)' },
+    c4: { slot: 'clothes', name: 'Wüstengewand', e: '🥻', price: 160, def: 2, spd: 0.05, color: '#e8d4a0', shirt: '#e8d4a0', pants: '#c9a46a', scarf: '#2f8f9f', desc: '+5 % Tempo (Wüstenland)' },
+    c5: { slot: 'clothes', name: 'Bergsteigerjacke', e: '🧥', price: 160, def: 3, color: '#d0452f', shirt: '#d0452f', pants: '#3a3f4a', desc: 'Leuchtend und stabil (Bergland)' },
+    c6: { slot: 'clothes', name: 'Waldläufer-Tracht', e: '🦺', price: 90, def: 2, color: '#2f5f3a', shirt: '#2f5f3a', pants: '#4a3a2a', cape: '#1f4a2a', desc: 'Mit grünem Umhang (Grünland)' },
+    // Schuhe
+    b1: { slot: 'boots', name: 'Lederstiefel', e: '🥾', price: 30, def: 1, spd: 0.05, color: '#7a4a2a', desc: '+5 % Tempo' },
+    b2: { slot: 'boots', name: 'Sprintstiefel', e: '👢', price: 80, spd: 0.25, color: '#b8322a', desc: '+25 % Tempo' },
+    b3: { slot: 'boots', name: 'Goldstiefel', e: '👢', price: 400, def: 3, spd: 0.3, color: '#ffc533', desc: '+30 % Tempo' },
+    // Schmuck
+    j1: { slot: 'amulet', name: 'Glücksamulett', e: '🍀', price: 250, luck: 0.2, color: '#4fc35a', desc: '20 % Chance auf doppelte Beute' },
+    j2: { slot: 'amulet', name: 'Weisheitsring', e: '💍', price: 300, xp: 0.1, color: '#5fa8ff', desc: '+10 % Erfahrung' },
+    j3: { slot: 'amulet', name: 'Händlerring', e: '💍', price: 300, sell: 0.1, color: '#ffc533', desc: '+10 % Verkaufspreis' }
   };
-  const SLOTS = [['weapon', 'Waffe'], ['helmet', 'Helm'], ['armor', 'Rüstung'], ['shield', 'Schild']];
+  const SLOTS = [['weapon', 'Waffe', '🗡️'], ['shield', 'Schild', '🛡️'], ['helmet', 'Helm', '🪖'], ['armor', 'Rüstung', '🦺'], ['clothes', 'Kleidung', '👕'], ['boots', 'Schuhe', '🥾'], ['amulet', 'Schmuck', '💍']];
+  const CATS = [['all', 'Alle'], ['weapon', 'Waffen'], ['armor', 'Rüstung'], ['clothes', 'Kleidung'], ['items', 'Items'], ['raw', 'Rohstoffe']];
+  const catOf = g => g.slot === 'weapon' ? 'weapon' : g.slot === 'clothes' ? 'clothes' : (g.slot === 'amulet' ? 'items' : 'armor');
+  const RANKS = [[1, 'Lehrling', '🌱'], [5, 'Abenteurer', '🧭'], [10, 'Veteran', '🛡️'], [15, 'Held', '⭐'], [20, 'Champion', '🏆'], [30, 'Legende', '👑']];
+  const rankOf = l => { let r = RANKS[0], next = null; RANKS.forEach((x, i) => { if (l >= x[0]) { r = x; next = RANKS[i + 1] || null; } }); return { r, next }; };
+  const ABILITIES = {
+    fighter: [[3, '💥', 'Kraftschlag', 'Ein wuchtiger Schlag mit doppeltem Schaden'], [6, '🧱', 'Schildwall', 'Halbiert kurz den erlittenen Schaden'], [10, '🌪️', 'Wirbelsturm', 'Trifft alle Gegner rundherum']],
+    mage: [[3, '🔥', 'Feuerball', 'Schleudert einen Feuerball auf Gegner'], [6, '💚', 'Heilzauber', 'Heilt 40 % deiner Lebenspunkte'], [10, '❄️', 'Eissturm', 'Friert alle Gegner in der Nähe ein']],
+    spy: [[3, '🧪', 'Giftklinge', 'Vergiftet den Gegner über Zeit'], [6, '💨', 'Schattensprung', 'Springt blitzschnell hinter den Gegner'], [10, '👻', 'Unsichtbarkeit', 'Für kurze Zeit unsichtbar']]
+  };
+  const SKILLS = [['wood', '🪓', 'Holzfällen'], ['mining', '⛏️', 'Bergbau'], ['digging', '🪏', 'Graben'], ['water', '🪣', 'Wasser schöpfen']];
+  const SKILL_OF = { tree: 'wood', cactus: 'wood', rock: 'mining', iron: 'mining', ice: 'mining', silver: 'mining', gold: 'mining', crystal: 'mining', earth: 'digging', water: 'water' };
+  const skillLevel = xp => Math.min(20, Math.floor(Math.sqrt((xp || 0) / 4)) + 1);
+  const skillXpFor = l => (l - 1) * (l - 1) * 4;
   const GOODS = {
-    potion: { name: 'Heiltrank', e: '🧪', price: 15, desc: 'Heilt dich im Kampf (kommt bald)' },
-    boots: { name: 'Sprintstiefel', e: '👢', price: 80, perk: true, desc: '+25 % Lauftempo' },
-    amulet: { name: 'Glücksamulett', e: '🍀', price: 250, perk: true, desc: '20 % Chance auf doppelte Beute' },
+    potion: { name: 'Heiltrank', e: '🧪', price: 15, desc: 'Heilt 50 Lebenspunkte' },
     bwood: { name: '5 Holz', e: '🪵', price: 15, give: ['wood', 5], desc: 'Ein Bündel Holz' },
     bstone: { name: '5 Stein', e: '🪨', price: 15, give: ['stone', 5], desc: 'Eine Kiste Steine' },
     biron: { name: '3 Eisen', e: '🔩', price: 40, give: ['iron', 3], desc: 'Drei Eisenbarren' }
@@ -145,13 +171,13 @@
   const LAND_ORDER = ['gruen', 'eis', 'wueste', 'berg'];
   const SHOP_BASE = [
     { id: 'general', title: 'Gemischtwaren', sign: '🧺 Gemischtwaren', x: -8.5, z: 6.5, awning: ['#e94f64', '#fff4e0'],
-      greet: '„Hallo! Ich kaufe deine Rohstoffe und hab allerlei Nützliches.“', goods: ['potion', 'boots', 'amulet', 'bwood', 'bstone', 'biron'], buys: true,
+      greet: '„Hallo! Ich kaufe deine Rohstoffe und hab allerlei Nützliches.“', goods: 'general', buys: true,
       look: { skin: '#f2c9a0', pants: '#5b4636', boots: '#5b3a22', hair: '#c0392b', hairStyle: 'long', skirt: '#3d7bd9', apron: '#fff4e0', lashes: true } },
     { id: 'weapons', title: 'Waffenhändler', sign: '⚔️ Waffen', x: 0, z: 10, awning: ['#3a4b8c', '#e8e8f0'],
       greet: '„Für jede Klasse die richtige Waffe!“', goods: 'weapons',
       look: { skin: '#d9a07a', pants: '#2e2a2a', boots: '#1f1a17', hair: '#2b2b2b', hairStyle: 'short', beard: '#2b2b2b', apron: '#6b4a2b' } },
     { id: 'armor', title: 'Rüstungshändler', sign: '🛡️ Rüstungen', x: 8.5, z: 6.5, awning: ['#2f8f6f', '#f0ede0'],
-      greet: '„Wer gut geschützt ist, kommt weiter. Schau dich um!“', goods: ['h1', 'a1', 's1', 'h2', 'a2', 's2', 'h3', 'a3', 's3', 'a4'],
+      greet: '„Wer gut geschützt ist, kommt weiter. Schau dich um!“', goods: ['h1', 'a1', 's1', 'b1', 'h2', 'a2', 's2', 'b2', 'h3', 'a3', 's3', 'b3', 'a4'],
       look: { skin: '#8d5a3b', pants: '#3a3f4a', boots: '#2a2a2a', hairStyle: 'bald', beard: '#e0e0e0' } }
   ];
 
@@ -170,6 +196,8 @@
     { id: 'stat1', e: '📈', name: 'Trainiert', desc: 'Verteile deinen ersten Statuspunkt', test: s => (s.stats.spent || 0) >= 1 },
     { id: 'travel1', e: '🧭', name: 'Reisende Seele', desc: 'Reise in ein anderes Land', test: s => Object.keys(s.visited || {}).length >= 2 },
     { id: 'travelall', e: '🌍', name: 'Weltenbummler', desc: 'Besuche alle vier Länder', test: s => Object.keys(s.visited || {}).length >= 4 },
+    { id: 'dress', e: '👗', name: 'Modebewusst', desc: 'Trage neue Kleidung', test: s => !!s.gear.clothes },
+    { id: 'skill5', e: '🎓', name: 'Fachkraft', desc: 'Bringe eine Sammel-Fähigkeit auf Stufe 5', test: s => Object.values(s.skills || {}).some(x => skillLevel(x) >= 5) },
     { id: 'ice1', e: '🧊', name: 'Eisbrecher', desc: 'Baue einen Eiskristall ab', test: s => (s.stats.ice || 0) >= 1 },
     { id: 'silver1', e: '🥈', name: 'Silberader', desc: 'Baue Silbererz ab', test: s => (s.stats.silver || 0) >= 1 },
     { id: 'rich', e: '💰', name: 'Wohlhabend', desc: 'Verdiene insgesamt 1000 Cim', test: s => (s.stats.earned || 0) >= 1000 },
@@ -183,28 +211,36 @@
   const SAVE_KEY = 'cimacu-save-v1';
   let S = {
     inv: {}, tools: { axe: 1, pick: 1, shovel: 1, bucket: 1 }, eq: 'axe', xp: 0, level: 1, ach: {}, stats: {},
-    money: 25, gear: { weapon: null, helmet: null, armor: null, shield: null }, owned: {}, perks: {}, potions: 0,
-    stat: { vit: 5, str: 5, int: 5, dex: 5 }, points: 0, hp: null, hero: null, land: 'gruen', visited: { gruen: 1 }
+    money: 25, gear: { weapon: null, shield: null, helmet: null, armor: null, clothes: null, boots: null, amulet: null }, owned: {}, perks: {}, potions: 0,
+    stat: { vit: 5, str: 5, int: 5, dex: 5 }, points: 0, hp: null, hero: null, land: 'gruen', visited: { gruen: 1 }, skills: {}, started: Date.now()
   };
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (d) { if (!d.stat) d.points = ((d.level || 1) - 1) * POINTS_PER_LEVEL; S = Object.assign(S, d); }
   } catch (e) { }
+  S.gear = Object.assign({ weapon: null, shield: null, helmet: null, armor: null, clothes: null, boots: null, amulet: null }, S.gear);
+  S.skills = S.skills || {};
+  // Alte Spielstände: Sprintstiefel & Glücksamulett werden zu echten Ausrüstungsteilen
+  if (S.perks && S.perks.boots) { S.owned.b2 = true; if (!S.gear.boots) S.gear.boots = 'b2'; delete S.perks.boots; }
+  if (S.perks && S.perks.amulet) { S.owned.j1 = true; if (!S.gear.amulet) S.gear.amulet = 'j1'; delete S.perks.amulet; }
   if (!LANDS[S.land]) S.land = 'gruen';
   const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { } };
 
   const cls = () => (S.hero && CLASSES[S.hero.cls]) ? S.hero.cls : 'fighter';
   const derived = () => {
     const s = S.stat, c = cls();
-    let atk = 1 + s.str, def = 0;
-    SLOTS.forEach(([slot]) => { const g = S.gear[slot] && GEAR[S.gear[slot]]; if (g) { atk += g.atk || 0; def += g.def || 0; } });
+    let atk = 1 + s.str, def = 0, spd = 0, xp = 0, sell = 0, luck = 0;
+    SLOTS.forEach(([slot]) => {
+      const g = S.gear[slot] && GEAR[S.gear[slot]];
+      if (g) { atk += g.atk || 0; def += g.def || 0; spd += g.spd || 0; xp += g.xp || 0; sell += g.sell || 0; luck += g.luck || 0; }
+    });
     return {
-      hpMax: Math.round((50 + s.vit * 10) * (c === 'fighter' ? 1.1 : 1)), atk, def,
+      hpMax: Math.round((50 + s.vit * 10) * (c === 'fighter' ? 1.1 : 1)), atk, def, luck,
       power: 1 + (s.str - 5) * 0.08,
       swing: (1 + (s.dex - 5) * 0.05) * (c === 'spy' ? 1.1 : 1),
-      speed: (1 + (s.dex - 5) * 0.015) * (c === 'spy' ? 1.1 : 1),
-      xpBonus: (s.int - 5) * 0.04 + (c === 'mage' ? 0.15 : 0),
-      sellBonus: (s.int - 5) * 0.02
+      speed: (1 + (s.dex - 5) * 0.015) * (c === 'spy' ? 1.1 : 1) * (1 + spd),
+      xpBonus: (s.int - 5) * 0.04 + (c === 'mage' ? 0.15 : 0) + xp,
+      sellBonus: (s.int - 5) * 0.02 + sell
     };
   };
   const sellPrice = i => Math.max(1, Math.round(SELL[i] * (1 + derived().sellBonus)));
@@ -722,7 +758,8 @@
   const headMats = {};
   TOOL_ORDER.forEach(t => { const hm = headMats[t] = new BABYLON.StandardMaterial('head_' + t, scene); hm.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5); hm.specularPower = 48; });
   const gearMat = slot => { const m = new BABYLON.StandardMaterial('gear_' + slot, scene); m.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6); m.specularPower = 64; return m; };
-  const GM = { weapon: gearMat('weapon'), helmet: gearMat('helmet'), armor: gearMat('armor'), shield: gearMat('shield') };
+  const GM = { weapon: gearMat('weapon'), helmet: gearMat('helmet'), armor: gearMat('armor'), shield: gearMat('shield'), amulet: gearMat('amulet') };
+  let amuletNode = null, lastClothes, portraitDirty = true;
   const tierColor = (tool, tier) => tier === 3 ? (tool === 'pick' ? '#5ff2ff' : '#ffc533') : tier === 2 ? '#cfd5e2' : (tool === 'shovel' || tool === 'bucket' ? '#9e7347' : '#80808a');
 
   let H = null, hero = null, body, legL, legR, armL, armR, toolNodes = {}, weaponNodes = {}, helmNode, armorNode, pads, shieldNode, nameTag = null;
@@ -733,6 +770,14 @@
     if (h.cls === 'spy') Object.assign(look, { hat: f ? null : 'hood', hatColor: '#1f2a2e', scarf: '#7a1f2a', cape: '#1f2a2e', belt: '#3a2a20' });
     if (h.cls === 'fighter') Object.assign(look, { cape: '#8a1f1f', belt: '#5a3a1e' });
     if (h.cls === 'spy' && f) Object.assign(look, { hat: 'hood', hatColor: '#1f2a2e' });
+    const cl = S.gear.clothes && GEAR[S.gear.clothes];
+    if (cl) {
+      Object.assign(look, { shirt: cl.shirt, pants: cl.pants, sleeve: cl.shirt });
+      if (look.robe) look.robe = cl.pants;
+      if (cl.belt) look.belt = cl.belt;
+      if (cl.scarf) look.scarf = cl.scarf;
+      if (cl.cape) look.cape = cl.cape;
+    }
     return look;
   };
   function buildHero() {
@@ -780,6 +825,11 @@
     shieldNode = TN('shieldN', armL); shieldNode.position.set(-0.18, -0.5, 0.05); shieldNode.rotation.z = Math.PI / 2;
     group('shieldM', [part('cyl', { diameter: 0.8, height: 0.07, tessellation: 18 }, null, 0, 0, 0)], shieldNode, GM.shield);
     { const b = part('sph', { diameter: 0.22, segments: 8 }, null, 0, 0.05, 0); b.parent = shieldNode; b.material = smat('#ffd23f', 0.5); }
+    // Schmuck-Anhänger auf der Brust
+    amuletNode = TN('amuletN', body);
+    { const ch = part('tor', { diameter: 0.42, thickness: 0.025, tessellation: 16 }, null, 0, 2.1, 0.06, [1, 1, 1.4], [1.25, 0, 0]); ch.parent = amuletNode; ch.material = smat('#ffd23f', 0.6); }
+    group('amuletGem', [part('sph', { diameter: 0.14, segments: 8 }, null, 0, 1.9, 0.33)], amuletNode, GM.amulet);
+    lastClothes = S.gear.clothes;
     // Namensschild
     makeNameTag();
     refreshTools(); applyGear();
@@ -818,18 +868,26 @@
     const b = $('toolBadge'); b.classList.remove('swap'); void b.offsetWidth; b.classList.add('swap');
   };
   function applyGear() {
+    if (S.gear.clothes !== lastClothes && H) { buildHero(); return; }   // neue Kleidung = Figur neu einkleiden
     const w = S.gear.weapon && GEAR[S.gear.weapon];
     Object.keys(weaponNodes).forEach(k => weaponNodes[k].setEnabled(!!w && w.type === k));
     helmNode.setEnabled(!!S.gear.helmet); armorNode.setEnabled(!!S.gear.armor); shieldNode.setEnabled(!!S.gear.shield);
     SLOTS.forEach(([slot]) => {
       const g = S.gear[slot] && GEAR[S.gear[slot]];
-      if (g) { GM[slot].diffuseColor = C3(g.color); GM[slot].emissiveColor = g.glow ? C3(g.color).scale(0.4) : BABYLON.Color3.Black(); }
+      if (g && GM[slot]) { GM[slot].diffuseColor = C3(g.color); GM[slot].emissiveColor = g.glow || slot === 'amulet' ? C3(g.color).scale(0.4) : BABYLON.Color3.Black(); }
     });
     const a = S.gear.armor && GEAR[S.gear.armor];
     pads.setEnabled(!!(a && a.pads));
     if (H.hair) H.hair.setEnabled(!S.gear.helmet);
-    H.bootM.diffuseColor = C3(S.perks.boots ? '#b8322a' : '#5b3a22');
+    const bt = S.gear.boots && GEAR[S.gear.boots];
+    H.bootM.diffuseColor = C3(bt ? bt.color : '#5b3a22');
+    H.bootM.emissiveColor = S.gear.boots === 'b3' ? C3(bt.color).scale(0.25) : BABYLON.Color3.Black();
+    amuletNode.setEnabled(!!S.gear.amulet);
+    portraitDirty = true;
   }
+  // Ausrüstung anlegen / ablegen (Kleidung fällt auf Standardkleidung zurück)
+  const equip = id => { const g = GEAR[id]; if (!g || !S.owned[id] || (g.cls && g.cls !== cls())) return false; S.gear[g.slot] = id; applyGear(); return true; };
+  const unequip = slot => { S.gear[slot] = null; applyGear(); };
 
   // =====================================================================
   // Kamera
@@ -904,7 +962,7 @@
     $('hpfill').style.width = (S.hp / d.hpMax * 100) + '%';
     $('hptxt').textContent = '❤ ' + Math.round(S.hp) + '/' + d.hpMax;
     $('moneyNum').textContent = S.money;
-    $('bag').classList.toggle('dot', S.points > 0);
+    $('charBtn').classList.toggle('dot', S.points > 0);
   };
   const checkAch = () => {
     let delay = 900;
@@ -977,22 +1035,31 @@
     hero.rotation.y = facing;
     swingT = 0; swingTarget = tgt; hitDone = false;
   };
+  const trainSkill = (kind, amount) => {
+    const sk = SKILL_OF[kind]; if (!sk) return;
+    const before = skillLevel(S.skills[sk]);
+    S.skills[sk] = (S.skills[sk] || 0) + amount;
+    const after = skillLevel(S.skills[sk]);
+    if (after > before) { const s = SKILLS.find(x => x[0] === sk); setTimeout(() => { toast(s[1] + ' ' + s[2] + ' ist jetzt Stufe ' + after + '!', true); vibrate([30, 30, 30]); }, 600); }
+  };
   const hit = tgt => {
     const k = KINDS[tgt.kind], tier = S.tools[k.tool];
+    trainSkill(tgt.kind, 1);
     if (tgt.node) {
       const n = tgt.node;
       if (!n.alive) return;
-      n.hp -= tier * derived().power; n.shake = 0.3;
+      n.hp -= tier * derived().power * (1 + (skillLevel(S.skills[SKILL_OF[n.kind]]) - 1) * 0.03); n.shake = 0.3;
       const y = heightAt(n.x, n.z) + 1;
       burst(n.x, y, n.z, k.color, 5); vibrate(15);
       if (n.hp <= 0.001) {
         n.alive = false; n.dying = 1; n.hidden = false; n.respawn = performance.now() + 90000;
         S.stats['k_' + n.kind] = (S.stats['k_' + n.kind] || 0) + 1;
-        const lucky = S.perks.amulet && Math.random() < 0.2;
+        const lucky = Math.random() < derived().luck;
         let i = 0;
         for (const it in k.drops) give(it, k.drops[it] * (lucky ? 2 : 1), new BABYLON.Vector3(n.x, y + 1.5, n.z), 300 * i++);
         if (lucky) setTimeout(() => popText('🍀 Doppelt!', new BABYLON.Vector3(n.x, y + 2.5, n.z)), 150);
         burst(n.x, y + 0.5, n.z, k.color, 14);
+        trainSkill(n.kind, 2);
         addXp(k.xp);
       }
     } else {
@@ -1045,13 +1112,15 @@
   // Händler
   // =====================================================================
   let curShop = null, shopTab = 'buy';
-  const fmtStat = g => g.atk ? `⚔️ Angriff +${g.atk}` : `🛡️ Schutz +${g.def}`;
+  const fmtStat = g => gearStatText(g);
   const openShop = s => {
     curShop = s; shopTab = 'buy'; $('shop').hidden = false;
     const npc = npcs.find(n => n.s === s); if (npc) npc.wave = 1.5;
     renderShop();
   };
-  const shopGoods = s => s.goods === 'weapons' ? Object.keys(GEAR).filter(k => GEAR[k].cls === cls()) : s.goods;
+  const LAND_CLOTH = { gruen: 'c6', eis: 'c3', wueste: 'c4', berg: 'c5' };
+  const shopGoods = s => s.goods === 'weapons' ? Object.keys(GEAR).filter(k => GEAR[k].cls === cls())
+    : s.goods === 'general' ? ['potion', 'c1', 'c2', LAND_CLOTH[S.land], 'j1', 'j2', 'j3', 'bwood', 'bstone', 'biron'] : s.goods;
   const renderShop = () => {
     const s = curShop; if (!s) return;
     $('shopTitle').textContent = s.sign.split(' ')[0] + ' ' + s.name + ' · ' + s.title;
@@ -1153,41 +1222,149 @@
   });
 
   // =====================================================================
-  // Rucksack
+  // Rucksack: Inventar, Charakter, Werkzeug, Bauen, Erfolge
   // =====================================================================
-  let tab = 'items';
+  let tab = 'inv', invCat = 'all', popItem = null;
   const canAfford = c => Object.keys(c).every(i => (S.inv[i] || 0) >= c[i]);
   const pct = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + ' %';
+  const TAB_TITLES = { inv: '🎒 Inventar', char: '👤 Charakter', tools: '🛠️ Werkzeug', craft: '🔨 Bauen', ach: '🏆 Erfolge' };
+
+  // ---------- Charakterbild (wird aus dem 3D-Spiel fotografiert) ----------
+  let portraitURL = '';
+  const pcam = new BABYLON.FreeCamera('pcam', new BABYLON.Vector3(0, 0, 0), scene);
+  pcam.fov = 0.55; pcam.minZ = 0.2; pcam.maxZ = 80; pcam.layerMask = 0x10000000;
+  const updatePortrait = async () => {
+    if (!portraitDirty && portraitURL) { document.querySelectorAll('.portrait').forEach(img => { img.src = portraitURL; }); return; }
+    portraitDirty = false;
+    const f = hero.rotation.y, p = hero.position;
+    pcam.position.set(p.x + Math.sin(f) * 5.2, p.y + 2.2, p.z + Math.cos(f) * 5.2);
+    pcam.setTarget(new BABYLON.Vector3(p.x, p.y + 1.5, p.z));
+    const tagOn = nameTag && nameTag.isEnabled();
+    if (nameTag) nameTag.setEnabled(false);
+    // Nur die Figur fotografieren (nichts davor, das sie verdeckt)
+    hero.getChildMeshes(false).forEach(m => { m.layerMask = 0xFFFFFFFF; });
+    const oldClear = scene.clearColor.clone();
+    scene.clearColor = new BABYLON.Color4(0.93, 0.87, 0.75, 1);
+    try { portraitURL = await BABYLON.Tools.CreateScreenshotUsingRenderTargetAsync(engine, pcam, { width: 240, height: 300 }, 'image/jpeg', 4, false, undefined, false, false, true); } catch (e) { }
+    scene.clearColor = oldClear;
+    if (nameTag && tagOn) nameTag.setEnabled(true);
+    document.querySelectorAll('.portrait').forEach(img => { img.src = portraitURL; });
+  };
+
+  const gearStatText = g => {
+    const p = [];
+    if (g.atk) p.push('⚔️ Angriff +' + g.atk);
+    if (g.def) p.push('🛡️ Schutz +' + g.def);
+    if (g.spd) p.push('⚡ Tempo +' + Math.round(g.spd * 100) + ' %');
+    if (g.xp) p.push('📚 XP +' + Math.round(g.xp * 100) + ' %');
+    if (g.sell) p.push('💰 Preise +' + Math.round(g.sell * 100) + ' %');
+    if (g.luck) p.push('🍀 Glück ' + Math.round(g.luck * 100) + ' %');
+    return p.join(' · ') || 'Nur zum Aussehen';
+  };
+  const slotLabel = slot => (SLOTS.find(s => s[0] === slot) || [])[1];
+  const ownedGear = () => Object.keys(GEAR).filter(id => S.owned[id] && (!GEAR[id].cls || GEAR[id].cls === cls()));
+
+  const dollSlot = slot => {
+    const id = S.gear[slot], g = id && GEAR[id], s = SLOTS.find(x => x[0] === slot);
+    if (g) return `<button class="dslot on" data-slot="${slot}" style="--c:${g.color}"><span class="de">${g.e}</span><span class="dl">${g.name}</span></button>`;
+    if (slot === 'clothes') return `<button class="dslot std" data-slot="clothes"><span class="de">👕</span><span class="dl">Standard</span></button>`;
+    return `<button class="dslot" data-slot="${slot}"><span class="de faded">${s[2]}</span><span class="dl">${s[1]}</span></button>`;
+  };
+
+  const renderInvTab = () => {
+    const d = derived();
+    let h = `<div class="doll">
+      <div class="dcol">${['helmet', 'armor', 'clothes', 'boots'].map(dollSlot).join('')}</div>
+      <div class="dpic"><img class="portrait" alt="Deine Figur" src="${portraitURL}"><div class="dsum"><span>⚔️ ${d.atk}</span><span>🛡️ ${d.def}</span><span>❤️ ${d.hpMax}</span></div></div>
+      <div class="dcol">${['weapon', 'shield', 'amulet'].map(dollSlot).join('')}<button class="dslot tool" data-tooltab="1"><span class="de">${TOOLS[S.eq]}</span><span class="dl">Werkzeug</span></button></div>
+    </div>`;
+    h += '<div class="chips">' + CATS.map(([id, name]) => `<button data-cat="${id}" class="${invCat === id ? 'on' : ''}">${name}</button>`).join('') + '</div>';
+    const cells = [];
+    ownedGear().forEach(id => {
+      const g = GEAR[id], c = catOf(g);
+      if (invCat !== 'all' && invCat !== c) return;
+      const worn = S.gear[g.slot] === id;
+      cells.push(`<button class="icell${worn ? ' worn' : ''}" data-item="${id}" style="--c:${g.color}"><span class="ie">${g.e}</span><span class="in">${g.name}</span>${worn ? '<span class="ok">✔</span>' : ''}</button>`);
+    });
+    if ((invCat === 'all' || invCat === 'items') && S.potions) cells.push(`<button class="icell" data-item="potion" style="--c:#e94fb0"><span class="ie">🧪</span><span class="in">Heiltrank</span><span class="cnt">${S.potions}</span></button>`);
+    if (invCat === 'all' || invCat === 'raw') Object.keys(ITEMS).forEach(i => { if (S.inv[i] > 0) cells.push(`<button class="icell raw" data-raw="${i}"><span class="ie">${ITEMS[i][1]}</span><span class="in">${ITEMS[i][0]}</span><span class="cnt">${S.inv[i]}</span></button>`); });
+    h += cells.length ? `<div class="igrid">${cells.join('')}</div>` : '<div class="empty">Hier ist noch nichts. Sammle Rohstoffe oder kaufe etwas bei den Händlern!</div>';
+    return h;
+  };
+
+  const renderCharTab = () => {
+    const d = derived(), c = CLASSES[cls()], rk = rankOf(S.level);
+    const need = xpNeed(S.level), played = Math.floor((S.played || 0) / 60);
+    let h = `<div class="chead"><img class="portrait small" alt="" src="${portraitURL}"><div class="cinfo">
+      <b>${S.hero ? esc(S.hero.name) : '—'}</b>
+      <small>${S.hero && S.hero.gender === 'f' ? '♀ Weiblich' : '♂ Männlich'} · ${c.e} ${c.name}</small>
+      <span class="rank">${rk.r[2]} ${rk.r[1]}</span>
+      <small>${rk.next ? 'Nächster Rang: ' + rk.next[2] + ' ' + rk.next[1] + ' ab Level ' + rk.next[0] : 'Höchster Rang erreicht!'}</small>
+    </div></div>
+    <div class="lvbox"><div class="lvnum">Level <b>${S.level}</b></div><div class="bar xp"><i style="width:${Math.min(100, S.xp / need * 100)}%"></i><span>${Math.floor(S.xp)} / ${need} XP</span></div>
+    <div class="bar hp"><i style="width:${S.hp / d.hpMax * 100}%"></i><span>❤ ${Math.round(S.hp)} / ${d.hpMax} Leben</span></div></div>`;
+    h += '<h4>Status</h4>';
+    h += S.points > 0 ? `<div class="points">⭐ Du hast ${S.points} Statuspunkt${S.points > 1 ? 'e' : ''} zu verteilen!</div>` : '';
+    h += STATS.map(([k, e, name, desc]) => `<div class="row stat"><div class="e">${e}</div><div class="t"><b>${name} <small>(${k.toUpperCase()})</small></b><small>${desc}</small></div><span class="v">${S.stat[k]}</span><button data-stat="${k}" ${S.points > 0 ? '' : 'disabled'} aria-label="${name} erhöhen">+</button></div>`).join('');
+    h += `<h4>Werte</h4><div class="vals">
+      <div><b>❤️ ${d.hpMax}</b>Leben</div><div><b>⚔️ ${d.atk}</b>Angriff</div><div><b>🛡️ ${d.def}</b>Schutz</div>
+      <div><b>⚡ ${pct(d.speed - 1)}</b>Lauftempo</div><div><b>⛏️ ${pct(d.power - 1)}</b>Abbau-Kraft</div><div><b>🔁 ${pct(d.swing - 1)}</b>Schlagtempo</div>
+      <div><b>📚 ${pct(d.xpBonus)}</b>XP-Bonus</div><div><b>💰 ${pct(d.sellBonus)}</b>Preise</div><div><b>🍀 ${Math.round(d.luck * 100)} %</b>Glück</div></div>
+      <div class="empty" style="padding:2px 0 0;font-size:12px">Klassen-Bonus: ${c.bonus}</div>`;
+    h += '<h4>Fähigkeiten</h4>' + ABILITIES[cls()].map(([lv, e, name, desc]) => {
+      const ok = S.level >= lv;
+      return `<div class="row${ok ? '' : ' locked'}"><div class="e">${ok ? e : '🔒'}</div><div class="t"><b>${name}</b><small>${desc}</small><small>${ok ? '✔ Gelernt – einsetzbar, sobald es Kämpfe gibt' : 'Wird mit Level ' + lv + ' gelernt'}</small></div></div>`;
+    }).join('');
+    h += '<h4>Sammel-Fähigkeiten</h4>' + SKILLS.map(([k, e, name]) => {
+      const xp = S.skills[k] || 0, lv = skillLevel(xp), a = skillXpFor(lv), b = skillXpFor(lv + 1);
+      const p = lv >= 20 ? 100 : Math.round((xp - a) / (b - a) * 100);
+      return `<div class="row skill"><div class="e">${e}</div><div class="t"><b>${name} <small>· Stufe ${lv}${lv >= 20 ? ' (max)' : ''}</small></b><div class="bar sk"><i style="width:${p}%"></i></div><small>+${(lv - 1) * 3} % Kraft</small></div></div>`;
+    }).join('');
+    const mined = ['rock', 'iron', 'ice', 'silver', 'gold', 'crystal'].reduce((a, k) => a + (S.stats['k_' + k] || 0), 0);
+    h += `<h4>Abenteuer</h4><div class="vals">
+      <div><b>🌍 ${Object.keys(S.visited || {}).length}/4</b>Länder</div><div><b>🏆 ${ACH.filter(a => S.ach[a.id]).length}/${ACH.length}</b>Erfolge</div><div><b>${CIM} ${S.stats.earned || 0}</b>Verdient</div>
+      <div><b>🌲 ${(S.stats.k_tree || 0) + (S.stats.k_cactus || 0)}</b>Gefällt</div><div><b>⛏️ ${mined}</b>Abgebaut</div><div><b>⏱️ ${played}</b>Minuten</div></div>`;
+    return h;
+  };
+
+  const renderItemPop = () => {
+    const box = $('itemPop');
+    if (!popItem) { box.hidden = true; return; }
+    let h = '';
+    if (popItem.slot) {
+      const slot = popItem.slot, id = S.gear[slot], g = id && GEAR[id];
+      if (g) popItem = { id };
+      else if (slot === 'clothes') h = `<div class="pe">👕</div><b>Standardkleidung</b><small>Deine Grundkleidung als ${CLASSES[cls()].name}. Sie kann nicht abgelegt werden.</small><small>Neue Kleidung gibt es bei der Gemischtwaren-Händlerin.</small>`;
+      else h = `<div class="pe faded">${SLOTS.find(s => s[0] === slot)[2]}</div><b>${slotLabel(slot)}: leer</b><small>${slot === 'weapon' ? 'Waffen gibt es beim Waffenhändler.' : slot === 'amulet' ? 'Schmuck gibt es bei der Gemischtwaren-Händlerin.' : 'Gibt es beim Rüstungshändler.'}</small>`;
+    }
+    if (popItem.id) {
+      const id = popItem.id, g = GEAR[id], worn = S.gear[g.slot] === id;
+      const cur = S.gear[g.slot] && GEAR[S.gear[g.slot]];
+      let cmp = '';
+      if (!worn && cur) { const dv = (g.atk || g.def || 0) - (cur.atk || cur.def || 0); if (dv) cmp = `<small class="${dv > 0 ? 'up' : 'down'}">${dv > 0 ? '▲ +' : '▼ '}${dv} gegenüber ${cur.name}</small>`; }
+      h = `<div class="pe" style="--c:${g.color}">${g.e}</div><b>${g.name}</b><small>${slotLabel(g.slot)}${g.cls ? ' · nur ' + CLASSES[g.cls].name : ''}</small><small>${gearStatText(g)}</small>${g.desc ? `<small>${g.desc}</small>` : ''}${cmp}
+        <div class="pbtns">${worn ? `<button class="alt" data-off="${g.slot}">${g.slot === 'clothes' ? 'Ablegen → Standardkleidung' : 'Ablegen'}</button>` : `<button data-on="${id}">Anlegen</button>`}</div>`;
+    } else if (popItem.potion) {
+      h = `<div class="pe">🧪</div><b>Heiltrank × ${S.potions}</b><small>Heilt 50 Lebenspunkte.</small><div class="pbtns"><button data-use="potion" ${S.potions ? '' : 'disabled'}>Benutzen</button></div>`;
+    } else if (popItem.raw) {
+      const i = popItem.raw;
+      h = `<div class="pe">${ITEMS[i][1]}</div><b>${ITEMS[i][0]} × ${S.inv[i] || 0}</b><small>Rohstoff · Wert: ${CIM} ${sellPrice(i)} pro Stück</small><small>Verkaufen bei der Gemischtwaren-Händlerin, oder unter „Bauen“ für Werkzeuge nutzen.</small>`;
+    }
+    box.innerHTML = `<button class="closeBtn pclose" data-pclose="1" aria-label="Schließen">✕</button>${h}`;
+    box.hidden = false;
+  };
+
   const renderInv = () => {
     document.querySelectorAll('#invTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    $('invTitle').textContent = TAB_TITLES[tab];
     let h = '';
-    if (tab === 'items') {
-      h = '<div class="grid">' + Object.keys(ITEMS).map(i =>
-        `<div class="cell${S.inv[i] ? '' : ' zero'}"><div class="e">${ITEMS[i][1]}</div><div class="c">${S.inv[i] || 0}</div><div class="n">${ITEMS[i][0]}</div></div>`).join('') + '</div>' +
-        '<div class="empty">Rohstoffe verkaufst du bei der Gemischtwaren-Händlerin (🧺) auf dem Marktplatz.</div>';
-    } else if (tab === 'tools') {
+    if (tab === 'inv') h = renderInvTab();
+    else if (tab === 'char') h = renderCharTab();
+    else if (tab === 'tools') {
       h = '<div class="empty" style="padding:0 0 10px">Das passende Werkzeug wird automatisch genommen.</div>' + TOOL_ORDER.map(t => {
         const tier = S.tools[t];
         return `<div class="row"><div class="e">${TOOLS[t]}</div><div class="t"><b>${TOOL_NAMES[t][tier - 1]}</b><small>Stufe ${tier} von 3 · Kraft ×${tier}</small></div>${S.eq === t ? '<span class="tag">✔ In der Hand</span>' : ''}</div>`;
       }).join('');
-    } else if (tab === 'hero') {
-      const d = derived(), c = CLASSES[cls()];
-      h = S.hero ? `<div class="row"><div class="e">${c.e}</div><div class="t"><b>${esc(S.hero.name)}</b><small>${S.hero.gender === 'f' ? 'Weiblich' : 'Männlich'} · ${c.name} · Level ${S.level} · ${c.bonus}</small></div></div>` : '';
-      h += S.points > 0 ? `<div class="points">⭐ Du hast ${S.points} Statuspunkt${S.points > 1 ? 'e' : ''} zu verteilen!</div>` : '';
-      h += STATS.map(([k, e, name, desc]) => `<div class="row stat"><div class="e">${e}</div><div class="t"><b>${name} <small>(${k.toUpperCase()})</small></b><small>${desc}</small></div><span class="v">${S.stat[k]}</span><button data-stat="${k}" ${S.points > 0 ? '' : 'disabled'} aria-label="${name} erhöhen">+</button></div>`).join('');
-      h += `<h4>Deine Werte</h4><div class="vals">
-        <div><b>❤️ ${d.hpMax}</b>Leben</div><div><b>⚔️ ${d.atk}</b>Angriff</div><div><b>🛡️ ${d.def}</b>Schutz</div>
-        <div><b>⛏️ ${pct(d.power - 1)}</b>Abbau-Kraft</div><div><b>⚡ ${pct(d.swing - 1)}</b>Tempo</div><div><b>📚 ${pct(d.xpBonus)}</b>XP-Bonus</div></div>`;
-      h += '<h4>Ausrüstung</h4>' + SLOTS.map(([slot, label]) => {
-        const id = S.gear[slot], g = id && GEAR[id];
-        return g ? `<div class="row"><div class="e">${g.e}<i style="background:${g.color}"></i></div><div class="t"><small>${label}</small><b>${g.name}</b><small>${fmtStat(g)}</small></div><button class="alt" data-unequip="${slot}">Ablegen</button></div>`
-          : `<div class="row locked"><div class="e">➖</div><div class="t"><small>${label}</small><b>leer</b><small>Beim Händler kaufen</small></div></div>`;
-      }).join('');
-      const spare = Object.keys(S.owned).filter(id => GEAR[id] && S.gear[GEAR[id].slot] !== id && (!GEAR[id].cls || GEAR[id].cls === cls()));
-      if (spare.length) h += '<h4>Weitere im Besitz</h4>' + spare.map(id => { const g = GEAR[id]; return `<div class="row"><div class="e">${g.e}<i style="background:${g.color}"></i></div><div class="t"><b>${g.name}</b><small>${fmtStat(g)}</small></div><button data-wear="${id}">Anlegen</button></div>`; }).join('');
-      const perks = Object.keys(S.perks).filter(p => S.perks[p]);
-      if (perks.length || S.potions) h += '<h4>Besonderes</h4>' + perks.map(p => `<div class="row"><div class="e">${GOODS[p].e}</div><div class="t"><b>${GOODS[p].name}</b><small>${GOODS[p].desc}</small></div><span class="tag">aktiv</span></div>`).join('') +
-        (S.potions ? `<div class="row"><div class="e">🧪</div><div class="t"><b>Heiltrank × ${S.potions}</b><small>Für spätere Kämpfe</small></div></div>` : '');
     } else if (tab === 'craft') {
       const list = RECIPES.filter(r => S.tools[r.tool] === r.tier - 1);
       const locked = RECIPES.filter(r => S.tools[r.tool] < r.tier - 1);
@@ -1203,21 +1380,42 @@
         `<div class="row${S.ach[a.id] ? '' : ' locked'}"><div class="e">${S.ach[a.id] ? a.e : '🔒'}</div><div class="t"><b>${a.name}</b><small>${a.desc}</small></div>${S.ach[a.id] ? '<span class="tag">🏆</span>' : ''}</div>`).join('');
     }
     $('invBody').innerHTML = h;
+    renderItemPop();
+    if (tab === 'inv' || tab === 'char') updatePortrait();
   };
-  $('bag').addEventListener('click', () => { if (S.points > 0) tab = 'hero'; $('inv').hidden = false; renderInv(); });
-  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; curShop = null; }));
-  ['inv', 'shop', 'travel', 'chat'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) { $(id).hidden = true; curShop = null; } }));
-  $('invTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { tab = b.dataset.tab; renderInv(); } });
+  const openInv = t => { tab = t; popItem = null; portraitDirty = true; $('inv').hidden = false; renderInv(); };
+  $('bag').addEventListener('click', () => openInv('inv'));
+  $('charBtn').addEventListener('click', () => openInv('char'));
+  $('lvlbox').addEventListener('click', () => openInv('char'));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; curShop = null; popItem = null; }));
+  ['inv', 'shop', 'travel', 'chat'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) { $(id).hidden = true; curShop = null; popItem = null; } }));
+  $('invTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { tab = b.dataset.tab; popItem = null; renderInv(); } });
+  $('itemPop').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.pclose) { popItem = null; renderItemPop(); return; }
+    if (b.dataset.on) { if (equip(b.dataset.on)) { toast('✔ ' + GEAR[b.dataset.on].name + ' angelegt'); vibrate(15); checkAch(); } popItem = null; }
+    if (b.dataset.off) { const slot = b.dataset.off; unequip(slot); toast(slot === 'clothes' ? '👕 Wieder in Standardkleidung' : slotLabel(slot) + ' abgelegt'); popItem = null; }
+    if (b.dataset.use === 'potion') {
+      const d = derived();
+      if (S.hp >= d.hpMax) toast('❤ Du bist schon ganz gesund.');
+      else { S.potions--; S.hp = Math.min(d.hpMax, S.hp + 50); toast('🧪 +50 Leben'); burst(hero.position.x, hero.position.y + 2, hero.position.z, '#ff4fa3', 12); updateHud(); }
+      if (!S.potions) popItem = null;
+    }
+    save(); updateHud(); renderInv();
+  });
   $('invBody').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.cat) { invCat = b.dataset.cat; renderInv(); return; }
+    if (b.dataset.tooltab) { tab = 'tools'; renderInv(); return; }
+    if (b.dataset.slot) { popItem = { slot: b.dataset.slot }; renderItemPop(); return; }
+    if (b.dataset.item) { popItem = b.dataset.item === 'potion' ? { potion: true } : { id: b.dataset.item }; renderItemPop(); return; }
+    if (b.dataset.raw) { popItem = { raw: b.dataset.raw }; renderItemPop(); return; }
     if (b.dataset.stat && S.points > 0) {
       const oldMax = derived().hpMax;
       S.stat[b.dataset.stat]++; S.points--; S.stats.spent = (S.stats.spent || 0) + 1;
       S.hp += derived().hpMax - oldMax;
       vibrate(15); checkAch(); updateHud();
     }
-    if (b.dataset.unequip) { S.gear[b.dataset.unequip] = null; applyGear(); }
-    if (b.dataset.wear) { S.gear[GEAR[b.dataset.wear].slot] = b.dataset.wear; applyGear(); checkAch(); }
     if (b.dataset.craft) {
       const [tool, tier] = b.dataset.craft.split(':'); const r = RECIPES.find(x => x.tool === tool && x.tier === +tier);
       if (!r || !canAfford(r.cost)) return;
@@ -1367,7 +1565,8 @@
     keys[k] = true; hint.style.opacity = '0';
     if (creating) return;
     if (k === ' ' || k === 'e') { actionHeld = true; startSwing(); }
-    if (k === 'i') { $('inv').hidden = !$('inv').hidden; renderInv(); }
+    if (k === 'i') { if ($('inv').hidden) openInv('inv'); else $('inv').hidden = true; }
+    if (k === 'k') { if ($('inv').hidden) openInv('char'); else $('inv').hidden = true; }
     if (k === 'c') { $('chatBtn').click(); e.preventDefault(); }
     if (k === 'escape') ['inv', 'shop', 'travel', 'chat'].forEach(id => { $(id).hidden = true; });
   });
@@ -1405,7 +1604,7 @@
     const d = derived();
 
     if (mag > 0.08) {
-      const sp = SPEED * d.speed * (S.perks.boots ? 1.25 : 1) * (swinging ? 0.35 : 1);
+      const sp = SPEED * d.speed * (swinging ? 0.35 : 1);
       np.x = hero.position.x + mx * sp * dt; np.z = hero.position.z + mz * sp * dt;
       for (const o of nodes) if (o.alive && Math.abs(o.x - np.x) < 3 && Math.abs(o.z - np.z) < 3) pushOut(np, o);
       for (const o of solids) if (Math.abs(o.x - np.x) < 3 && Math.abs(o.z - np.z) < 3) pushOut(np, o);
@@ -1508,7 +1707,7 @@
     }
 
     regenTimer += dt;
-    if (regenTimer > 1) { regenTimer = 0; if (S.hp < d.hpMax) { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.02); updateHud(); } }
+    if (regenTimer > 1) { regenTimer = 0; S.played = (S.played || 0) + 1; if (S.hp < d.hpMax) { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.02); updateHud(); } }
     uiTimer -= dt;
     if (uiTimer <= 0) { uiTimer = 0.12; if (!creating) updateActButton(); }
 
@@ -1531,4 +1730,5 @@
   if (!S.hero) { previewCreate(); openCreate(); }
   engine.runRenderLoop(() => scene.render());
   window.addEventListener('resize', () => { engine.resize(); if (joyId === null) homeStick(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });})();
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+})();
