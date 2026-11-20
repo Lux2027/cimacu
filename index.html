@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1b2a4a">
 <title>Cimacu</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -15,33 +15,45 @@
   <div id="lvlbox">
     <div id="lvlrow"><span id="title">CIMACU</span><span id="lvl">Lv 1</span></div>
     <div id="xpbar"><div id="xpfill"></div></div>
+    <div id="hpbar"><div id="hpfill"></div><span id="hptxt">❤ 100/100</span></div>
   </div>
-  <button id="bag" aria-label="Rucksack öffnen">🎒</button>
+  <div id="hudR"><span id="money">🪙 0</span><button id="bag" aria-label="Rucksack öffnen">🎒</button></div>
 </div>
 <div id="hint">Links ziehen = laufen · Rechts wischen = Kamera</div>
 
 <div id="stick"><div id="knob"></div></div>
 
-<div id="hotbar"></div>
+<button id="toolBadge" aria-label="Werkzeug"><span id="toolIcon">🪓</span><i id="toolDot"></i></button>
 <button id="act"><span id="actIcon">✋</span><span id="actLabel">—</span><svg id="actRing" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/></svg></button>
 
 <div id="toast"></div>
-<div id="levelup"><div id="lvTitle">LEVEL UP!</div><div id="lvNum">2</div><div id="lvSub">Du baust jetzt schneller ab</div></div>
+<div id="levelup"><div id="lvTitle">LEVEL UP!</div><div id="lvNum">2</div><div id="lvSub">+3 Statuspunkte – verteile sie im 🎒 unter „Held“</div></div>
 
-<div id="inv" hidden>
-  <div id="sheet">
-    <div id="sheetHead"><b>Rucksack</b><button id="close" aria-label="Schließen">✕</button></div>
-    <div id="tabs">
+<div id="inv" class="overlay" hidden>
+  <div class="sheet">
+    <div class="sheetHead"><span>🎒 Rucksack</span><button class="closeBtn" data-close="inv" aria-label="Schließen">✕</button></div>
+    <div id="invTabs" class="tabs">
       <button data-tab="items" class="on">Rohstoffe</button>
-      <button data-tab="tools">Werkzeuge</button>
-      <button data-tab="craft">Herstellen</button>
+      <button data-tab="tools">Werkzeug</button>
+      <button data-tab="hero">Held</button>
+      <button data-tab="craft">Bauen</button>
       <button data-tab="ach">Erfolge</button>
     </div>
-    <div id="tabBody"></div>
+    <div id="invBody" class="body"></div>
+  </div>
+</div>
+
+<div id="shop" class="overlay" hidden>
+  <div class="sheet">
+    <div class="sheetHead"><span id="shopTitle"></span><button class="closeBtn" data-close="shop" aria-label="Schließen">✕</button></div>
+    <div id="shopGreet" class="greet"></div>
+    <div><span id="shopMoney" class="purse"></span></div>
+    <div id="shopTabs" class="tabs"></div>
+    <div id="shopBody" class="body"></div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.0.0/babylon.js"></script>
-<script src="game.js?v=2"></script>
+<script src="game.js?v=4"></script>
 </body>
 </html>
