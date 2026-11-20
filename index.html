@@ -6,23 +6,42 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1b2a4a">
 <title>Cimacu</title>
-<style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #1b2a4a; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-  canvas { width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
-  #hud { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; color: #fff; }
-  #title { font-weight: 800; font-size: 22px; letter-spacing: 2px; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
-  #step { font-size: 12px; background: rgba(0,0,0,.35); padding: 4px 10px; border-radius: 20px; }
-  #hint { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: rgba(255,255,255,.85); font-size: 13px; pointer-events: none; text-shadow: 0 1px 4px rgba(0,0,0,.6); transition: opacity 1s; }
-  #stick { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.35); pointer-events: none; left: 90px; bottom: 0; top: auto; opacity: .5; transition: opacity .2s; }
-  #knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.75); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
-</style>
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div id="title">CIMACU</div><div id="step">Schritt 1 · Bewegung</div></div>
+
+<div id="hud">
+  <div id="lvlbox">
+    <div id="lvlrow"><span id="title">CIMACU</span><span id="lvl">Lv 1</span></div>
+    <div id="xpbar"><div id="xpfill"></div></div>
+  </div>
+  <button id="bag" aria-label="Rucksack öffnen">🎒</button>
+</div>
+<div id="hint">Links ziehen = laufen · Rechts wischen = Kamera</div>
+
 <div id="stick"><div id="knob"></div></div>
-<div id="hint">Links ziehen = laufen · Rechts wischen = Kamera drehen</div>
+
+<div id="hotbar"></div>
+<button id="act"><span id="actIcon">✋</span><span id="actLabel">—</span><svg id="actRing" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/></svg></button>
+
+<div id="toast"></div>
+<div id="levelup"><div id="lvTitle">LEVEL UP!</div><div id="lvNum">2</div><div id="lvSub">Du baust jetzt schneller ab</div></div>
+
+<div id="inv" hidden>
+  <div id="sheet">
+    <div id="sheetHead"><b>Rucksack</b><button id="close" aria-label="Schließen">✕</button></div>
+    <div id="tabs">
+      <button data-tab="items" class="on">Rohstoffe</button>
+      <button data-tab="tools">Werkzeuge</button>
+      <button data-tab="craft">Herstellen</button>
+      <button data-tab="ach">Erfolge</button>
+    </div>
+    <div id="tabBody"></div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.0.0/babylon.js"></script>
-<script src="game.js"></script>
+<script src="game.js?v=2"></script>
 </body>
 </html>
