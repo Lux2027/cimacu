@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1b2a4a">
 <title>Cimacu</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -17,8 +17,15 @@
     <div id="xpbar"><div id="xpfill"></div></div>
     <div id="hpbar"><div id="hpfill"></div><span id="hptxt">❤ 100/100</span></div>
   </div>
-  <div id="hudR"><span id="money">🪙 0</span><button id="bag" aria-label="Rucksack öffnen">🎒</button></div>
+  <div id="hudR">
+    <span id="money"><i class="cim big"></i><b id="moneyNum">0</b></span>
+    <div id="hudBtns">
+      <button id="bag" class="hbtn" aria-label="Rucksack öffnen">🎒</button>
+      <button id="chatBtn" class="hbtn" aria-label="Chat öffnen">💬</button>
+    </div>
+  </div>
 </div>
+<div id="landPill">📍 Grünland</div>
 <div id="hint">Links ziehen = laufen · Rechts wischen = Kamera</div>
 
 <div id="stick"><div id="knob"></div></div>
@@ -27,8 +34,11 @@
 <button id="act"><span id="actIcon">✋</span><span id="actLabel">—</span><svg id="actRing" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/></svg></button>
 
 <div id="toast"></div>
+<div id="bubble"></div>
 <div id="levelup"><div id="lvTitle">LEVEL UP!</div><div id="lvNum">2</div><div id="lvSub">+3 Statuspunkte – verteile sie im 🎒 unter „Held“</div></div>
+<div id="fade"><div id="fadeTxt"></div></div>
 
+<!-- Rucksack -->
 <div id="inv" class="overlay" hidden>
   <div class="sheet">
     <div class="sheetHead"><span>🎒 Rucksack</span><button class="closeBtn" data-close="inv" aria-label="Schließen">✕</button></div>
@@ -43,6 +53,7 @@
   </div>
 </div>
 
+<!-- Händler -->
 <div id="shop" class="overlay" hidden>
   <div class="sheet">
     <div class="sheetHead"><span id="shopTitle"></span><button class="closeBtn" data-close="shop" aria-label="Schließen">✕</button></div>
@@ -53,7 +64,42 @@
   </div>
 </div>
 
+<!-- Reisen -->
+<div id="travel" class="overlay" hidden>
+  <div class="sheet">
+    <div class="sheetHead"><span>🧭 Reisetor</span><button class="closeBtn" data-close="travel" aria-label="Schließen">✕</button></div>
+    <div class="greet">Wohin soll die Reise gehen? Jede Reise kostet <b>150 <i class="cim"></i> Cim</b>.</div>
+    <div><span id="travelMoney" class="purse"></span></div>
+    <div id="travelBody" class="body" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Chat -->
+<div id="chat" class="overlay" hidden>
+  <div class="sheet chatSheet">
+    <div class="sheetHead"><span>💬 Chat</span><button class="closeBtn" data-close="chat" aria-label="Schließen">✕</button></div>
+    <div id="chatTabs" class="tabs"></div>
+    <div class="offline">🔌 Der Chat ist noch nicht mit dem Internet verbunden. Deine Nachrichten siehst im Moment nur du.</div>
+    <div id="chatList"></div>
+    <div id="chatEmoji"></div>
+    <form id="chatForm" autocomplete="off"><input id="chatIn" maxlength="120" placeholder="Nachricht schreiben …" enterkeyhint="send"><button type="submit">Senden</button></form>
+  </div>
+</div>
+
+<!-- Figur erstellen -->
+<div id="create" hidden>
+  <div class="ccard">
+    <h2>Erschaffe deine Figur</h2>
+    <input id="cName" maxlength="16" placeholder="Wie heißt du?" autocomplete="off" spellcheck="false">
+    <div id="cErr"></div>
+    <div class="seg" id="cGender"><button data-g="m">♂ Männlich</button><button data-g="f">♀ Weiblich</button></div>
+    <div class="classes" id="cClass"></div>
+    <div id="cDesc"></div>
+    <button id="cGo" class="wide go">Abenteuer beginnen ➜</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.0.0/babylon.js"></script>
-<script src="game.js?v=4"></script>
+<script src="game.js?v=5"></script>
 </body>
 </html>

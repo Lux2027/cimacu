@@ -1,56 +1,58 @@
-// Cimacu – Schritt 4: flüssiger (weniger Teile, weiche Schatten, Auto-Auflösung), Statuspunkte, ein Werkzeug-Bild, schönere Welt
+// Cimacu – Schritt 5: Figur erstellen (Name, Geschlecht, Klasse), Reisen in 4 Länder, Cim-Währung, Chat-Fenster
 (function () {
   const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const canvas = $('game');
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: false, stencil: false, powerPreference: 'high-performance' }, false);
   const DPR = window.devicePixelRatio || 1;
-  const BEST_SCALE = 1 / Math.min(DPR, 1.5);   // höchste Qualität, die wir zulassen
-  const WORST_SCALE = 1.4;                       // niedrigste Auflösung, wenn das Handy zu langsam ist
+  const BEST_SCALE = 1 / Math.min(DPR, 1.5), WORST_SCALE = 1.3;
   let scaleLevel = BEST_SCALE;
   engine.setHardwareScalingLevel(scaleLevel);
 
   const scene = new BABYLON.Scene(engine);
-  scene.clearColor = new BABYLON.Color4(0.62, 0.8, 0.95, 1);
   scene.skipPointerMovePicking = true;
   scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
   scene.fogStart = 45; scene.fogEnd = 130;
-  scene.fogColor = new BABYLON.Color3(0.72, 0.85, 0.96);
   const ip = scene.imageProcessingConfiguration;
   ip.toneMappingEnabled = true;
   ip.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
   ip.exposure = 1.25; ip.contrast = 1.15;
   const MB = BABYLON.MeshBuilder;
+  const C3 = hex => BABYLON.Color3.FromHexString(hex);
 
   // =====================================================================
   // Spieldaten
   // =====================================================================
-  const COIN = '🪙';
+  const CIM = '<i class="cim"></i>';
+  const TRAVEL_COST = 150;
   const ITEMS = {
     wood: ['Holz', '🪵'], stone: ['Stein', '🪨'], dirt: ['Erde', '🟫'], water: ['Wasser', '💧'],
-    iron: ['Eisen', '🔩'], gold: ['Golderz', '🟡'], crystal: ['Kristall', '💎']
+    iron: ['Eisen', '🔩'], gold: ['Golderz', '🟡'], crystal: ['Kristall', '💎'],
+    ice: ['Eiskristall', '🧊'], cactus: ['Kaktusfrucht', '🌵'], silver: ['Silbererz', '🥈']
   };
-  const SELL = { wood: 2, stone: 2, dirt: 1, water: 1, iron: 6, gold: 15, crystal: 40 };
+  const SELL = { wood: 2, stone: 2, dirt: 1, water: 1, iron: 6, gold: 15, crystal: 40, ice: 30, cactus: 10, silver: 25 };
   const TOOLS = { axe: '🪓', pick: '⛏️', shovel: '🪏', bucket: '🪣' };
   const TOOL_ORDER = ['axe', 'pick', 'shovel', 'bucket'];
   const TOOL_NAMES = {
-    axe: ['Stein-Axt', 'Eisen-Axt', 'Gold-Axt'],
-    pick: ['Stein-Spitzhacke', 'Eisen-Spitzhacke', 'Kristall-Spitzhacke'],
-    shovel: ['Holzschaufel', 'Eisenschaufel', 'Goldschaufel'],
-    bucket: ['Holzeimer', 'Großer Eimer', 'Goldeimer']
+    axe: ['Stein-Axt', 'Eisen-Axt', 'Gold-Axt'], pick: ['Stein-Spitzhacke', 'Eisen-Spitzhacke', 'Kristall-Spitzhacke'],
+    shovel: ['Holzschaufel', 'Eisenschaufel', 'Goldschaufel'], bucket: ['Holzeimer', 'Großer Eimer', 'Goldeimer']
   };
   const TIER_DOT = ['#9a9a9a', '#cfd8e6', '#ffc533'];
   const KINDS = {
-    tree:    { name: 'Baum',     tool: 'axe',    hp: 3, xp: 5,  drops: { wood: 3 },            verb: 'Fällen',   color: '#8a5a2b' },
-    rock:    { name: 'Stein',    tool: 'pick',   hp: 3, xp: 5,  drops: { stone: 2 },           verb: 'Abbauen',  color: '#8c8c96' },
-    iron:    { name: 'Eisenerz', tool: 'pick',   hp: 4, xp: 12, drops: { iron: 2, stone: 1 },  verb: 'Abbauen',  color: '#c0652a' },
-    gold:    { name: 'Goldader', tool: 'pick',   hp: 5, xp: 25, drops: { gold: 2 }, tier: 2,   verb: 'Abbauen',  color: '#ffcc33' },
-    crystal: { name: 'Kristall', tool: 'pick',   hp: 6, xp: 40, drops: { crystal: 1 }, tier: 2, verb: 'Abbauen', color: '#5ff2ff' },
-    water:   { name: 'Teich',    tool: 'bucket', hp: 1, xp: 1,  drops: { water: 1 },           verb: 'Schöpfen', color: '#3d8fe0' },
-    earth:   { name: 'Boden',    tool: 'shovel', hp: 1, xp: 1,  drops: { dirt: 1 },            verb: 'Graben',   color: '#6b4423' }
+    tree:    { tool: 'axe',    hp: 3, xp: 5,  drops: { wood: 3 },            verb: 'Fällen',   color: '#8a5a2b' },
+    cactus:  { tool: 'axe',    hp: 2, xp: 7,  drops: { cactus: 2 },          verb: 'Ernten',   color: '#4f9a3e' },
+    rock:    { tool: 'pick',   hp: 3, xp: 5,  drops: { stone: 2 },           verb: 'Abbauen',  color: '#8c8c96' },
+    iron:    { tool: 'pick',   hp: 4, xp: 12, drops: { iron: 2, stone: 1 },  verb: 'Abbauen',  color: '#c0652a' },
+    ice:     { tool: 'pick',   hp: 4, xp: 16, drops: { ice: 1 },             verb: 'Abbauen',  color: '#a8e6ff' },
+    silver:  { tool: 'pick',   hp: 5, xp: 22, drops: { silver: 2 }, tier: 2, verb: 'Abbauen',  color: '#e6edf5' },
+    gold:    { tool: 'pick',   hp: 5, xp: 25, drops: { gold: 2 }, tier: 2,   verb: 'Abbauen',  color: '#ffcc33' },
+    crystal: { tool: 'pick',   hp: 6, xp: 40, drops: { crystal: 1 }, tier: 2, verb: 'Abbauen', color: '#5ff2ff' },
+    water:   { tool: 'bucket', hp: 1, xp: 1,  drops: { water: 1 },           verb: 'Schöpfen', color: '#3d8fe0' },
+    earth:   { tool: 'shovel', hp: 1, xp: 1,  drops: { dirt: 1 },            verb: 'Graben',   color: '#6b4423' }
   };
   const RECIPES = [
     { tool: 'axe', tier: 2, cost: { wood: 5, iron: 4 }, desc: 'Fällt Bäume doppelt so schnell' },
-    { tool: 'pick', tier: 2, cost: { wood: 5, iron: 6 }, desc: 'Kann Golderz und Kristall abbauen' },
+    { tool: 'pick', tier: 2, cost: { wood: 5, iron: 6 }, desc: 'Baut Golderz, Silber und Kristall ab' },
     { tool: 'shovel', tier: 2, cost: { wood: 3, iron: 3 }, desc: '2 Erde pro Stich' },
     { tool: 'bucket', tier: 2, cost: { wood: 4, iron: 4 }, desc: '2 Wasser pro Schöpfen' },
     { tool: 'axe', tier: 3, cost: { wood: 15, gold: 5, crystal: 1 }, desc: 'Fällt Bäume dreimal so schnell' },
@@ -58,31 +60,49 @@
     { tool: 'shovel', tier: 3, cost: { wood: 5, gold: 4 }, desc: '3 Erde pro Stich' },
     { tool: 'bucket', tier: 3, cost: { wood: 5, gold: 4 }, desc: '3 Wasser pro Schöpfen' }
   ];
+  const CLASSES = {
+    fighter: { name: 'Kämpfer', e: '⚔️', base: { vit: 7, str: 7, int: 2, dex: 4 }, start: ['w1', 's1'], bonus: '+10 % Leben', color: '#c0392b',
+      desc: 'Stark und zäh. Kämpft mit Schwert und Schild. Bonus: +10 % Leben.', shirt: '#b33a3a', pants: '#4a3a2a' },
+    mage: { name: 'Zauberer', e: '🔮', base: { vit: 4, str: 3, int: 8, dex: 5 }, start: ['m1'], bonus: '+15 % Erfahrung', color: '#7a3fd1',
+      desc: 'Klug und mächtig. Kämpft mit Zauberstab. Bonus: +15 % Erfahrung.', shirt: '#5b3fa8', pants: '#3a2f5a' },
+    spy: { name: 'Spion', e: '🗡️', base: { vit: 4, str: 5, int: 4, dex: 7 }, start: ['d1'], bonus: '+10 % Tempo', color: '#2f6f5f',
+      desc: 'Flink und geschickt. Kämpft mit Dolchen. Bonus: +10 % Tempo.', shirt: '#2e3a40', pants: '#22282c' }
+  };
   const GEAR = {
-    w1: { slot: 'weapon', name: 'Holzschwert',    e: '🗡️', price: 15,   atk: 3,  color: '#b07a45' },
-    w2: { slot: 'weapon', name: 'Bronzeschwert',  e: '🗡️', price: 60,   atk: 6,  color: '#cd7f32' },
-    w3: { slot: 'weapon', name: 'Eisenschwert',   e: '🗡️', price: 150,  atk: 10, color: '#d5dbe5' },
-    w4: { slot: 'weapon', name: 'Goldsäbel',      e: '🗡️', price: 400,  atk: 16, color: '#ffc533' },
-    w5: { slot: 'weapon', name: 'Kristallklinge', e: '🗡️', price: 1000, atk: 26, color: '#5ff2ff', glow: true },
-    h1: { slot: 'helmet', name: 'Lederkappe',     e: '🪖', price: 20,   def: 1,  color: '#8a5a2b' },
-    h2: { slot: 'helmet', name: 'Eisenhelm',      e: '🪖', price: 110,  def: 3,  color: '#c9ced8' },
-    h3: { slot: 'helmet', name: 'Goldhelm',       e: '🪖', price: 320,  def: 5,  color: '#ffc533' },
-    a1: { slot: 'armor',  name: 'Lederweste',     e: '🦺', price: 30,   def: 2,  color: '#8a5a2b' },
-    a2: { slot: 'armor',  name: 'Kettenhemd',     e: '🦺', price: 140,  def: 5,  color: '#9aa3b0' },
-    a3: { slot: 'armor',  name: 'Plattenrüstung', e: '🦺', price: 420,  def: 9,  color: '#d5dbe5', pads: true },
-    a4: { slot: 'armor',  name: 'Kristallrüstung', e: '🦺', price: 1100, def: 14, color: '#5ff2ff', pads: true, glow: true },
-    s1: { slot: 'shield', name: 'Holzschild',     e: '🛡️', price: 25,   def: 2,  color: '#a8743f' },
-    s2: { slot: 'shield', name: 'Eisenschild',    e: '🛡️', price: 150,  def: 4,  color: '#c9ced8' },
-    s3: { slot: 'shield', name: 'Goldschild',     e: '🛡️', price: 380,  def: 7,  color: '#ffc533' }
+    w1: { slot: 'weapon', cls: 'fighter', type: 'sword', name: 'Holzschwert', e: '🗡️', price: 15, atk: 3, color: '#b07a45' },
+    w2: { slot: 'weapon', cls: 'fighter', type: 'sword', name: 'Bronzeschwert', e: '🗡️', price: 60, atk: 6, color: '#cd7f32' },
+    w3: { slot: 'weapon', cls: 'fighter', type: 'sword', name: 'Eisenschwert', e: '🗡️', price: 150, atk: 10, color: '#d5dbe5' },
+    w4: { slot: 'weapon', cls: 'fighter', type: 'sword', name: 'Goldsäbel', e: '🗡️', price: 400, atk: 16, color: '#ffc533' },
+    w5: { slot: 'weapon', cls: 'fighter', type: 'sword', name: 'Kristallklinge', e: '🗡️', price: 1000, atk: 26, color: '#5ff2ff', glow: true },
+    m1: { slot: 'weapon', cls: 'mage', type: 'staff', name: 'Lehrlingsstab', e: '🪄', price: 15, atk: 3, color: '#9fd8ff' },
+    m2: { slot: 'weapon', cls: 'mage', type: 'staff', name: 'Eichenstab', e: '🪄', price: 60, atk: 6, color: '#7cff6b' },
+    m3: { slot: 'weapon', cls: 'mage', type: 'staff', name: 'Saphirstab', e: '🪄', price: 150, atk: 10, color: '#3d7bff', glow: true },
+    m4: { slot: 'weapon', cls: 'mage', type: 'staff', name: 'Sonnenstab', e: '🪄', price: 400, atk: 16, color: '#ffc533', glow: true },
+    m5: { slot: 'weapon', cls: 'mage', type: 'staff', name: 'Sternenstab', e: '🪄', price: 1000, atk: 26, color: '#e28bff', glow: true },
+    d1: { slot: 'weapon', cls: 'spy', type: 'dagger', name: 'Holzdolch', e: '🔪', price: 15, atk: 3, color: '#b07a45' },
+    d2: { slot: 'weapon', cls: 'spy', type: 'dagger', name: 'Bronzedolch', e: '🔪', price: 60, atk: 6, color: '#cd7f32' },
+    d3: { slot: 'weapon', cls: 'spy', type: 'dagger', name: 'Stahldolch', e: '🔪', price: 150, atk: 10, color: '#d5dbe5' },
+    d4: { slot: 'weapon', cls: 'spy', type: 'dagger', name: 'Giftdolch', e: '🔪', price: 400, atk: 16, color: '#7cff6b', glow: true },
+    d5: { slot: 'weapon', cls: 'spy', type: 'dagger', name: 'Schattenklinge', e: '🔪', price: 1000, atk: 26, color: '#8a5cff', glow: true },
+    h1: { slot: 'helmet', name: 'Lederkappe', e: '🪖', price: 20, def: 1, color: '#8a5a2b' },
+    h2: { slot: 'helmet', name: 'Eisenhelm', e: '🪖', price: 110, def: 3, color: '#c9ced8' },
+    h3: { slot: 'helmet', name: 'Goldhelm', e: '🪖', price: 320, def: 5, color: '#ffc533' },
+    a1: { slot: 'armor', name: 'Lederweste', e: '🦺', price: 30, def: 2, color: '#8a5a2b' },
+    a2: { slot: 'armor', name: 'Kettenhemd', e: '🦺', price: 140, def: 5, color: '#9aa3b0' },
+    a3: { slot: 'armor', name: 'Plattenrüstung', e: '🦺', price: 420, def: 9, color: '#d5dbe5', pads: true },
+    a4: { slot: 'armor', name: 'Kristallrüstung', e: '🦺', price: 1100, def: 14, color: '#5ff2ff', pads: true, glow: true },
+    s1: { slot: 'shield', name: 'Holzschild', e: '🛡️', price: 25, def: 2, color: '#a8743f' },
+    s2: { slot: 'shield', name: 'Eisenschild', e: '🛡️', price: 150, def: 4, color: '#c9ced8' },
+    s3: { slot: 'shield', name: 'Goldschild', e: '🛡️', price: 380, def: 7, color: '#ffc533' }
   };
   const SLOTS = [['weapon', 'Waffe'], ['helmet', 'Helm'], ['armor', 'Rüstung'], ['shield', 'Schild']];
   const GOODS = {
     potion: { name: 'Heiltrank', e: '🧪', price: 15, desc: 'Heilt dich im Kampf (kommt bald)' },
-    boots:  { name: 'Sprintstiefel', e: '👢', price: 80, perk: true, desc: '+25 % Lauftempo' },
+    boots: { name: 'Sprintstiefel', e: '👢', price: 80, perk: true, desc: '+25 % Lauftempo' },
     amulet: { name: 'Glücksamulett', e: '🍀', price: 250, perk: true, desc: '20 % Chance auf doppelte Beute' },
-    bwood:  { name: '5 Holz', e: '🪵', price: 15, give: ['wood', 5], desc: 'Ein Bündel Holz' },
+    bwood: { name: '5 Holz', e: '🪵', price: 15, give: ['wood', 5], desc: 'Ein Bündel Holz' },
     bstone: { name: '5 Stein', e: '🪨', price: 15, give: ['stone', 5], desc: 'Eine Kiste Steine' },
-    biron:  { name: '3 Eisen', e: '🔩', price: 40, give: ['iron', 3], desc: 'Drei Eisenbarren' }
+    biron: { name: '3 Eisen', e: '🔩', price: 40, give: ['iron', 3], desc: 'Drei Eisenbarren' }
   };
   const STATS = [
     ['vit', '❤️', 'Vitalität', 'Mehr Lebenspunkte (+10 pro Punkt)'],
@@ -90,17 +110,51 @@
     ['int', '🧠', 'Intelligenz', 'Mehr Erfahrung (XP) und bessere Preise'],
     ['dex', '🏃', 'Geschick', 'Schneller abbauen und laufen']
   ];
-  const SHOPS = [
-    { id: 'general', name: 'Mira', title: 'Gemischtwaren', sign: '🧺 Gemischtwaren', x: -8.5, z: 6.5, awning: ['#e94f64', '#fff4e0'],
-      greet: '„Hallo, Reisende! Ich kaufe deine Rohstoffe und hab allerlei Nützliches.“', goods: ['potion', 'boots', 'amulet', 'bwood', 'bstone', 'biron'], buys: true,
-      look: { skin: '#f2c9a0', shirt: '#6fbf73', pants: '#5b4636', boots: '#5b3a22', hair: '#c0392b', hairStyle: 'long', skirt: '#3d7bd9', apron: '#fff4e0' } },
-    { id: 'weapons', name: 'Borin', title: 'Waffenhändler', sign: '⚔️ Waffen', x: 0, z: 10, awning: ['#3a4b8c', '#e8e8f0'],
-      greet: '„Eine gute Klinge ist dein bester Freund da draußen!“', goods: ['w1', 'w2', 'w3', 'w4', 'w5'],
-      look: { skin: '#d9a07a', shirt: '#4a3a32', pants: '#2e2a2a', boots: '#1f1a17', hair: '#2b2b2b', hairStyle: 'short', beard: '#2b2b2b', apron: '#6b4a2b' } },
-    { id: 'armor', name: 'Hagen', title: 'Rüstungshändler', sign: '🛡️ Rüstungen', x: 8.5, z: 6.5, awning: ['#2f8f6f', '#f0ede0'],
+
+  // ---------- Die vier Länder ----------
+  const LANDS = {
+    gruen: {
+      name: 'Grünland', e: '🌳', desc: 'Dein Heimatdorf: Wälder, Wiesen und Teiche.', special: 'Holz, Eisen, Gold, Kristall', card: 'linear-gradient(135deg,#4caf50,#2e7d32)',
+      sky: ['#3f86d8', '#8ec3f0', '#cfe6f7', '#e8f1f7'], fog: '#b8d9f5', g1: '#4f9a36', g2: '#8cc84b', shore: '#d8c48a', plaza: '#a88f60', ring: ['#8c8478', '#a39a8c'], sea: '#3f8fd8', pond: '#4da6ff', amp: 1,
+      trees: ['pine', 'round'], treeCount: 140, rocks: { rock: 45, iron: 16, gold: 8, crystal: 6 }, tuft: ['#4f9a36', '#6fb43e', '#3d8a2e'], flowers: ['#ff5d73', '#ffd23f', '#ffffff', '#b77cff'],
+      ponds: [{ x: 18, z: -20, r: 5 }, { x: -30, z: 26, r: 6 }, { x: 46, z: 38, r: 4.5 }, { x: -48, z: -36, r: 5.5 }, { x: 8, z: 55, r: 5 }],
+      shops: [['Mira', '#6fbf73'], ['Borin', '#4a3a32'], ['Hagen', '#7d8794']], light: 1
+    },
+    eis: {
+      name: 'Eisland', e: '❄️', desc: 'Verschneite Wälder und gefrorene Seen. Hier glitzern seltene Eiskristalle.', special: 'Eiskristalle (🧊 wertvoll!)', card: 'linear-gradient(135deg,#7fb8e8,#3d6fa8)',
+      sky: ['#6f9fd0', '#b9d4ea', '#e3eef6', '#f4f8fb'], fog: '#e6eef5', g1: '#dde8f0', g2: '#ffffff', shore: '#b8d4ea', plaza: '#b9c4cf', ring: ['#8fa1b3', '#a9b8c6'], sea: '#7fb0d8', pond: '#bfe6ff', frozen: true, amp: 1.3,
+      trees: ['snowpine'], treeCount: 120, rocks: { rock: 35, iron: 12, ice: 18, crystal: 6 }, tuft: ['#c9d6dd', '#e9f1f5', '#b5c4cc'], flowers: [], mounds: true,
+      ponds: [{ x: 22, z: -18, r: 7 }, { x: -34, z: 22, r: 6 }, { x: 40, z: 45, r: 6 }, { x: -45, z: -40, r: 5 }],
+      shops: [['Frida', '#7aa6c9'], ['Bjarne', '#5a4a42'], ['Ulf', '#6d7b8a']], weather: 'snow', light: 0.95
+    },
+    wueste: {
+      name: 'Wüstenland', e: '🏜️', desc: 'Heiße Dünen, Palmen-Oasen und stachelige Kakteen. Gold ist hier häufiger.', special: 'Kaktusfrüchte und viel Golderz', card: 'linear-gradient(135deg,#f0b25a,#c4762a)',
+      sky: ['#4a9be0', '#9fd0f2', '#f5e3c0', '#fbecd0'], fog: '#f2dfb8', g1: '#d9b26a', g2: '#f0d79a', shore: '#9fc46a', plaza: '#c9a46a', ring: ['#b08a5a', '#c9a678'], sea: '#2fb4c8', pond: '#2fd0d0', amp: 1.6,
+      trees: ['palm'], treeCount: 45, cactus: 45, rocks: { rock: 35, iron: 10, gold: 18, crystal: 5 }, tuft: ['#c9b46a', '#b39c50', '#d8c27a'], flowers: [],
+      ponds: [{ x: 20, z: -20, r: 5.5 }, { x: -38, z: 30, r: 6 }, { x: 45, z: 40, r: 4.5 }],
+      shops: [['Samira', '#e0a050'], ['Kasim', '#8a3b2b'], ['Omar', '#c9b38a']], light: 1.1
+    },
+    berg: {
+      name: 'Bergland', e: '⛰️', desc: 'Hohe Gipfel mit Schnee, viele Felsen und Silberadern.', special: 'Silbererz und viel Eisen', card: 'linear-gradient(135deg,#8a9aa8,#4f5f6e)',
+      sky: ['#3a74c0', '#86b4e6', '#d4e4f2', '#eef3f7'], fog: '#c9d8e6', g1: '#5d8048', g2: '#8fa86a', shore: '#a9a090', plaza: '#8f8a80', ring: ['#6f6a62', '#8a857c'], sea: '#3f6fa8', pond: '#5aa8e8', amp: 4.2, snowLine: 5.5,
+      trees: ['pine'], treeCount: 80, rocks: { rock: 70, iron: 26, silver: 14, gold: 6, crystal: 8 }, tuft: ['#5d8048', '#7a9a58', '#4a6a3a'], flowers: ['#ffffff', '#b77cff'],
+      ponds: [{ x: 25, z: -25, r: 5 }, { x: -30, z: 35, r: 5 }],
+      shops: [['Greta', '#7a8a5a'], ['Thorin', '#5a4030'], ['Brom', '#6a6a72']], light: 1
+    }
+  };
+  const LAND_ORDER = ['gruen', 'eis', 'wueste', 'berg'];
+  const SHOP_BASE = [
+    { id: 'general', title: 'Gemischtwaren', sign: '🧺 Gemischtwaren', x: -8.5, z: 6.5, awning: ['#e94f64', '#fff4e0'],
+      greet: '„Hallo! Ich kaufe deine Rohstoffe und hab allerlei Nützliches.“', goods: ['potion', 'boots', 'amulet', 'bwood', 'bstone', 'biron'], buys: true,
+      look: { skin: '#f2c9a0', pants: '#5b4636', boots: '#5b3a22', hair: '#c0392b', hairStyle: 'long', skirt: '#3d7bd9', apron: '#fff4e0', lashes: true } },
+    { id: 'weapons', title: 'Waffenhändler', sign: '⚔️ Waffen', x: 0, z: 10, awning: ['#3a4b8c', '#e8e8f0'],
+      greet: '„Für jede Klasse die richtige Waffe!“', goods: 'weapons',
+      look: { skin: '#d9a07a', pants: '#2e2a2a', boots: '#1f1a17', hair: '#2b2b2b', hairStyle: 'short', beard: '#2b2b2b', apron: '#6b4a2b' } },
+    { id: 'armor', title: 'Rüstungshändler', sign: '🛡️ Rüstungen', x: 8.5, z: 6.5, awning: ['#2f8f6f', '#f0ede0'],
       greet: '„Wer gut geschützt ist, kommt weiter. Schau dich um!“', goods: ['h1', 'a1', 's1', 'h2', 'a2', 's2', 'h3', 'a3', 's3', 'a4'],
-      look: { skin: '#8d5a3b', shirt: '#7d8794', pants: '#3a3f4a', boots: '#2a2a2a', hairStyle: 'bald', beard: '#e0e0e0' } }
+      look: { skin: '#8d5a3b', pants: '#3a3f4a', boots: '#2a2a2a', hairStyle: 'bald', beard: '#e0e0e0' } }
   ];
+
   const ACH = [
     { id: 'tree1', e: '🌲', name: 'Holzfäller', desc: 'Fälle deinen ersten Baum', test: s => (s.stats.k_tree || 0) >= 1 },
     { id: 'wood50', e: '🪵', name: 'Holzlager', desc: 'Sammle insgesamt 50 Holz', test: s => (s.stats.wood || 0) >= 50 },
@@ -110,41 +164,46 @@
     { id: 'crystal1', e: '💎', name: 'Kristallfund', desc: 'Baue einen Kristall ab', test: s => (s.stats.crystal || 0) >= 1 },
     { id: 'water10', e: '💧', name: 'Wasserträger', desc: 'Schöpfe 10 Wasser', test: s => (s.stats.water || 0) >= 10 },
     { id: 'dirt25', e: '🟫', name: 'Maulwurf', desc: 'Grabe 25 Erde', test: s => (s.stats.dirt || 0) >= 25 },
-    { id: 'sell1', e: '🤝', name: 'Händlerin', desc: 'Verkaufe deine ersten Rohstoffe', test: s => (s.stats.sold || 0) >= 1 },
-    { id: 'weapon1', e: '🗡️', name: 'Bewaffnet', desc: 'Kaufe deine erste Waffe', test: s => Object.keys(s.owned).some(k => k[0] === 'w') },
+    { id: 'sell1', e: '🤝', name: 'Händler', desc: 'Verkaufe deine ersten Rohstoffe', test: s => (s.stats.sold || 0) >= 1 },
+    { id: 'weapon1', e: '🗡️', name: 'Bewaffnet', desc: 'Kaufe deine erste Waffe', test: s => Object.keys(s.owned).some(k => GEAR[k] && GEAR[k].slot === 'weapon' && !CLASSES[s.hero && s.hero.cls || 'fighter'].start.includes(k)) },
     { id: 'armorset', e: '🛡️', name: 'Gepanzert', desc: 'Trage Helm, Rüstung und Schild', test: s => s.gear.helmet && s.gear.armor && s.gear.shield },
     { id: 'stat1', e: '📈', name: 'Trainiert', desc: 'Verteile deinen ersten Statuspunkt', test: s => (s.stats.spent || 0) >= 1 },
-    { id: 'rich', e: '💰', name: 'Wohlhabend', desc: 'Verdiene insgesamt 1000 Taler', test: s => (s.stats.earned || 0) >= 1000 },
+    { id: 'travel1', e: '🧭', name: 'Reisende Seele', desc: 'Reise in ein anderes Land', test: s => Object.keys(s.visited || {}).length >= 2 },
+    { id: 'travelall', e: '🌍', name: 'Weltenbummler', desc: 'Besuche alle vier Länder', test: s => Object.keys(s.visited || {}).length >= 4 },
+    { id: 'ice1', e: '🧊', name: 'Eisbrecher', desc: 'Baue einen Eiskristall ab', test: s => (s.stats.ice || 0) >= 1 },
+    { id: 'silver1', e: '🥈', name: 'Silberader', desc: 'Baue Silbererz ab', test: s => (s.stats.silver || 0) >= 1 },
+    { id: 'rich', e: '💰', name: 'Wohlhabend', desc: 'Verdiene insgesamt 1000 Cim', test: s => (s.stats.earned || 0) >= 1000 },
     { id: 'lvl5', e: '⭐', name: 'Abenteurer', desc: 'Erreiche Level 5', test: s => s.level >= 5 },
     { id: 'master', e: '👑', name: 'Meister', desc: 'Alle Werkzeuge auf Stufe 3', test: s => TOOL_ORDER.every(t => s.tools[t] >= 3) }
   ];
   const xpNeed = l => Math.round(40 * Math.pow(l, 1.5));
   const POINTS_PER_LEVEL = 3;
 
-  // Spielstand (wird im Handy gespeichert)
+  // ---------- Spielstand ----------
   const SAVE_KEY = 'cimacu-save-v1';
   let S = {
     inv: {}, tools: { axe: 1, pick: 1, shovel: 1, bucket: 1 }, eq: 'axe', xp: 0, level: 1, ach: {}, stats: {},
     money: 25, gear: { weapon: null, helmet: null, armor: null, shield: null }, owned: {}, perks: {}, potions: 0,
-    stat: { vit: 5, str: 5, int: 5, dex: 5 }, points: 0, hp: null
+    stat: { vit: 5, str: 5, int: 5, dex: 5 }, points: 0, hp: null, hero: null, land: 'gruen', visited: { gruen: 1 }
   };
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (d) { if (!d.stat) d.points = ((d.level || 1) - 1) * POINTS_PER_LEVEL; S = Object.assign(S, d); }
   } catch (e) { }
+  if (!LANDS[S.land]) S.land = 'gruen';
   const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { } };
 
-  // Abgeleitete Werte aus Statuspunkten und Ausrüstung
+  const cls = () => (S.hero && CLASSES[S.hero.cls]) ? S.hero.cls : 'fighter';
   const derived = () => {
-    const s = S.stat;
+    const s = S.stat, c = cls();
     let atk = 1 + s.str, def = 0;
     SLOTS.forEach(([slot]) => { const g = S.gear[slot] && GEAR[S.gear[slot]]; if (g) { atk += g.atk || 0; def += g.def || 0; } });
     return {
-      hpMax: 50 + s.vit * 10, atk, def,
+      hpMax: Math.round((50 + s.vit * 10) * (c === 'fighter' ? 1.1 : 1)), atk, def,
       power: 1 + (s.str - 5) * 0.08,
-      swing: 1 + (s.dex - 5) * 0.05,
-      speed: 1 + (s.dex - 5) * 0.015,
-      xpBonus: (s.int - 5) * 0.04,
+      swing: (1 + (s.dex - 5) * 0.05) * (c === 'spy' ? 1.1 : 1),
+      speed: (1 + (s.dex - 5) * 0.015) * (c === 'spy' ? 1.1 : 1),
+      xpBonus: (s.int - 5) * 0.04 + (c === 'mage' ? 0.15 : 0),
       sellBonus: (s.int - 5) * 0.02
     };
   };
@@ -152,52 +211,41 @@
   if (S.hp == null) S.hp = derived().hpMax;
 
   // =====================================================================
-  // Licht, Himmel, Materialien
+  // Licht, Himmel, Materialien, Bau-Helfer
   // =====================================================================
   const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0.2, 1, 0.1), scene);
-  hemi.intensity = 0.75;
   hemi.diffuse = new BABYLON.Color3(1, 0.97, 0.9);
-  hemi.groundColor = new BABYLON.Color3(0.42, 0.4, 0.5);
   const sun = new BABYLON.DirectionalLight('sun', new BABYLON.Vector3(-0.5, -1, -0.35), scene);
-  sun.intensity = 0.85;
   sun.diffuse = new BABYLON.Color3(1, 0.95, 0.85);
 
-  // Himmel mit Farbverlauf
   const skyTex = new BABYLON.DynamicTexture('skyT', { width: 4, height: 256 }, scene, false);
-  { const c = skyTex.getContext(); const g = c.createLinearGradient(0, 0, 0, 256);
-    g.addColorStop(0, '#3f86d8'); g.addColorStop(0.45, '#8ec3f0'); g.addColorStop(0.6, '#cfe6f7'); g.addColorStop(1, '#e8f1f7');
-    c.fillStyle = g; c.fillRect(0, 0, 4, 256); skyTex.update(); }
   const sky = MB.CreateSphere('sky', { diameter: 350, segments: 12, sideOrientation: BABYLON.Mesh.BACKSIDE }, scene);
   const skyM = new BABYLON.StandardMaterial('skyM', scene);
   skyM.emissiveTexture = skyTex; skyM.disableLighting = true; skyM.fogEnabled = false; skyM.backFaceCulling = false;
   sky.material = skyM; sky.infiniteDistance = true; sky.isPickable = false;
 
-  const mat = (name, r, g, b, emissive) => {
-    const m = new BABYLON.StandardMaterial(name, scene);
-    m.diffuseColor = new BABYLON.Color3(r, g, b);
-    m.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
-    if (emissive) m.emissiveColor = new BABYLON.Color3(r * emissive, g * emissive, b * emissive);
-    return m;
-  };
   const matCache = {};
-  const smat = (hex, spec, glow) => {
-    const key = hex + '|' + (spec || 0) + '|' + (glow || 0);
+  const smat = (hex, spec, glow, alpha) => {
+    const key = hex + '|' + (spec || 0) + '|' + (glow || 0) + '|' + (alpha || 1);
     if (matCache[key]) return matCache[key];
     const m = new BABYLON.StandardMaterial('s' + key, scene);
-    m.diffuseColor = BABYLON.Color3.FromHexString(hex);
+    m.diffuseColor = C3(hex);
     const s = spec === undefined ? 0.12 : spec;
     m.specularColor = new BABYLON.Color3(s, s, s); m.specularPower = 40;
-    if (glow) m.emissiveColor = BABYLON.Color3.FromHexString(hex).scale(glow);
+    if (glow) m.emissiveColor = C3(hex).scale(glow);
+    if (alpha) m.alpha = alpha;
     return (matCache[key] = m);
   };
-  // Ein Material für alle eingefärbten, zusammengefügten Teile (spart sehr viel Rechenzeit)
   const vcMat = new BABYLON.StandardMaterial('vc', scene);
   vcMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
   vcMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1); vcMat.specularPower = 32;
+  const vcGlow = new BABYLON.StandardMaterial('vcGlow', scene);
+  vcGlow.diffuseColor = new BABYLON.Color3(1, 1, 1); vcGlow.emissiveColor = new BABYLON.Color3(0.25, 0.35, 0.45);
+  vcGlow.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8); vcGlow.specularPower = 64; vcGlow.alpha = 0.92;
 
   const TN = (name, parent) => { const t = new BABYLON.TransformNode(name, scene); if (parent) t.parent = parent; return t; };
   const VC = (m, hex) => {
-    const c = BABYLON.Color3.FromHexString(hex), n = m.getTotalVertices(), a = new Float32Array(n * 4);
+    const c = C3(hex), n = m.getTotalVertices(), a = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) { a[i * 4] = c.r; a[i * 4 + 1] = c.g; a[i * 4 + 2] = c.b; a[i * 4 + 3] = 1; }
     m.setVerticesData(BABYLON.VertexBuffer.ColorKind, a);
     return m;
@@ -208,9 +256,9 @@
     cyl: o => MB.CreateCylinder('p', Object.assign({ tessellation: 12 }, o), scene),
     box: o => MB.CreateBox('p', o, scene),
     tor: o => MB.CreateTorus('p', o, scene),
-    poly: o => MB.CreatePolyhedron('p', o, scene)
+    poly: o => MB.CreatePolyhedron('p', o, scene),
+    ico: o => MB.CreateIcoSphere('p', o, scene)
   };
-  // Teil bauen: Form, Optionen, Farbe, Position, Skalierung, Drehung
   const part = (type, o, hex, x, y, z, s, r) => {
     const m = SHAPES[type](o);
     m.position.set(x, y, z);
@@ -218,7 +266,6 @@
     if (r) m.rotation.set(r[0], r[1], r[2]);
     return hex ? VC(m, hex) : m;
   };
-  // Viele Teile zu EINEM Teil zusammenfügen
   const group = (name, parts, parent, material) => {
     const m = BABYLON.Mesh.MergeMeshes(parts, true, true);
     m.name = name; m.material = material || vcMat; m.isPickable = false;
@@ -226,29 +273,33 @@
     return m;
   };
 
-  // Weicher runder Schatten (statt teurer Echtzeit-Schatten)
+  // Weiche Fleck-Schatten
   const blobTex = new BABYLON.DynamicTexture('blobT', { width: 64, height: 64 }, scene, false);
   { const c = blobTex.getContext(); const g = c.createRadialGradient(32, 32, 2, 32, 32, 31);
     g.addColorStop(0, 'rgba(0,0,0,0.55)'); g.addColorStop(0.6, 'rgba(0,0,0,0.3)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.fillRect(0, 0, 64, 64); blobTex.update(); blobTex.hasAlpha = true; }
   const blobMat = new BABYLON.StandardMaterial('blobM', scene);
   blobMat.diffuseColor = BABYLON.Color3.Black(); blobMat.specularColor = BABYLON.Color3.Black();
-  blobMat.opacityTexture = blobTex; blobMat.disableLighting = true; blobMat.zOffset = -2; blobMat.fogEnabled = true;
+  blobMat.opacityTexture = blobTex; blobMat.disableLighting = true; blobMat.zOffset = -2;
   const blob = MB.CreateGround('blob', { width: 1, height: 1 }, scene);
   blob.material = blobMat; blob.isVisible = false; blob.isPickable = false;
   const addBlob = (x, y, z, size) => { const b = blob.createInstance('bl'); b.position.set(x, y + 0.06, z); b.scaling.set(size, 1, size); b.isPickable = false; return b; };
 
   // =====================================================================
-  // Welt: Boden, Marktplatz, Teiche
+  // Land bauen (wird beim Reisen komplett neu aufgebaut)
   // =====================================================================
   const WORLD = 90;
-  const PONDS = [{ x: 18, z: -20, r: 5 }, { x: -30, z: 26, r: 6 }, { x: 46, z: 38, r: 4.5 }, { x: -48, z: -36, r: 5.5 }, { x: 8, z: 55, r: 5 }];
+  let L = LANDS[S.land], landStuff = [], landMats = [];
+  let nodes = [], solids = [], npcs = [], PONDS = [], holes = [], holeIdx = 0, SHOPS = [], portal = null, snow = null, pondMat = null;
+
   const baseHeight = (x, z) => {
     const d = Math.sqrt(x * x + z * z);
     const flat = Math.min(1, Math.max(0, (d - 15) / 15));
-    return (Math.sin(x * 0.09) * Math.cos(z * 0.11) * 2.2 + Math.sin((x + z) * 0.05) * 1.5) * flat;
+    const a = L.amp;
+    let h = Math.sin(x * 0.09) * Math.cos(z * 0.11) * 2.2 + Math.sin((x + z) * 0.05) * 1.5;
+    if (a > 2) h += Math.max(0, Math.sin(x * 0.045 + 1) * Math.cos(z * 0.05)) * 3.5;
+    return h * a * flat;
   };
-  PONDS.forEach(p => { p.level = baseHeight(p.x, p.z); });
   const heightAt = (x, z) => {
     let h = baseHeight(x, z);
     for (const p of PONDS) {
@@ -261,198 +312,373 @@
     }
     return h;
   };
-  const ground = MB.CreateGround('ground', { width: 200, height: 200, subdivisions: 70, updatable: true }, scene);
-  {
+
+  const makeSign = (id, text, bg) => {
+    const tex = new BABYLON.DynamicTexture('signT' + id, { width: 512, height: 128 }, scene, true);
+    const ctx = tex.getContext();
+    ctx.fillStyle = bg || '#5a3a1e'; ctx.fillRect(0, 0, 512, 128);
+    ctx.fillStyle = '#f7ecd2'; ctx.fillRect(8, 8, 496, 112);
+    ctx.fillStyle = '#3a2a1a'; ctx.font = 'bold 56px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 256, 68);
+    tex.update();
+    const m = new BABYLON.StandardMaterial('signM' + id, scene);
+    m.diffuseTexture = tex; m.emissiveColor = new BABYLON.Color3(0.45, 0.45, 0.45); m.specularColor = BABYLON.Color3.Black(); m.backFaceCulling = false;
+    landMats.push(m);
+    const p = MB.CreatePlane('sign' + id, { width: 2.6, height: 0.65 }, scene);
+    p.material = m; p.isPickable = false; p.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y;
+    return p;
+  };
+
+  function buildLand(id) {
+    // Altes Land entfernen
+    landStuff.forEach(o => { if (!o.isDisposed()) o.dispose(false, false); });
+    landMats.forEach(m => m.dispose(true, true));
+    landStuff = []; landMats = [];
+    if (snow) { snow.dispose(); snow = null; }
+    L = LANDS[id];
+    nodes = []; solids = [{ x: 0, z: 1, r: 1.25 }]; npcs = []; holes = []; holeIdx = 0;
+    PONDS = L.ponds.map(p => Object.assign({}, p));
+    PONDS.forEach(p => { p.level = baseHeight(p.x, p.z); });
+
+    const m0 = new Set(scene.meshes), t0 = new Set(scene.transformNodes);
+
+    // Himmel, Nebel, Licht
+    { const c = skyTex.getContext(); const g = c.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0, L.sky[0]); g.addColorStop(0.45, L.sky[1]); g.addColorStop(0.6, L.sky[2]); g.addColorStop(1, L.sky[3]);
+      c.fillStyle = g; c.fillRect(0, 0, 4, 256); skyTex.update(); }
+    scene.fogColor = C3(L.fog); scene.clearColor = BABYLON.Color4.FromColor3(C3(L.fog), 1);
+    hemi.intensity = 0.75 * L.light; sun.intensity = 0.85 * L.light;
+    hemi.groundColor = id === 'eis' ? new BABYLON.Color3(0.6, 0.66, 0.75) : new BABYLON.Color3(0.42, 0.4, 0.5);
+    ip.exposure = id === 'eis' ? 1.05 : 1.25;
+
+    // Boden mit Farben je Fläche
+    const ground = MB.CreateGround('ground', { width: 200, height: 200, subdivisions: 70, updatable: true }, scene);
     const pos = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
     for (let i = 0; i < pos.length; i += 3) pos[i + 1] = heightAt(pos[i], pos[i + 2]);
     ground.updateVerticesData(BABYLON.VertexBuffer.PositionKind, pos);
     ground.convertToFlatShadedMesh();
-    // Jede Fläche bekommt ihre eigene Grün-Schattierung, Sand am Wasser, Erde am Platz
     const gp = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
     const cols = new Float32Array(gp.length / 3 * 4);
-    const g1 = BABYLON.Color3.FromHexString('#4f9a36'), g2 = BABYLON.Color3.FromHexString('#8cc84b'),
-      sand = BABYLON.Color3.FromHexString('#d8c48a'), dirt = BABYLON.Color3.FromHexString('#9b8458'), tmp = new BABYLON.Color3();
-    let sd = 3;
-    const r2 = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const g1 = C3(L.g1), g2 = C3(L.g2), shore = C3(L.shore), plazaC = C3(L.plaza), snowC = C3('#f4f8fb'), rockC = C3('#8a8478'), tmp = new BABYLON.Color3();
+    let sd = 3; const r2 = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
     for (let i = 0; i < gp.length; i += 9) {
       const cx = (gp[i] + gp[i + 3] + gp[i + 6]) / 3, cy = (gp[i + 1] + gp[i + 4] + gp[i + 7]) / 3, cz = (gp[i + 2] + gp[i + 5] + gp[i + 8]) / 3;
       const n = (Math.sin(cx * 0.21 + cz * 0.13) + Math.sin(cx * 0.07 - cz * 0.19)) * 0.25 + 0.5;
       BABYLON.Color3.LerpToRef(g1, g2, Math.min(1, Math.max(0, n + (r2() - 0.5) * 0.18 + cy * 0.04)), tmp);
-      for (const p of PONDS) { const d = Math.hypot(cx - p.x, cz - p.z); if (d < p.r + 2) BABYLON.Color3.LerpToRef(tmp, sand, Math.min(1, (p.r + 2 - d) / 2), tmp); }
+      if (L.snowLine) {
+        if (cy > L.snowLine * 0.55) BABYLON.Color3.LerpToRef(tmp, rockC, Math.min(1, (cy - L.snowLine * 0.55) / 2), tmp);
+        if (cy > L.snowLine) BABYLON.Color3.LerpToRef(tmp, snowC, Math.min(1, (cy - L.snowLine) / 1.5), tmp);
+      }
+      for (const p of PONDS) { const d = Math.hypot(cx - p.x, cz - p.z); if (d < p.r + 2) BABYLON.Color3.LerpToRef(tmp, shore, Math.min(1, (p.r + 2 - d) / 2), tmp); }
       const dc = Math.hypot(cx, cz);
-      if (dc < 15.5) BABYLON.Color3.LerpToRef(tmp, dirt, Math.min(1, (15.5 - dc) / 2), tmp);
-      if (dc > WORLD + 2) BABYLON.Color3.LerpToRef(tmp, sand, Math.min(1, (dc - WORLD - 2) / 4), tmp);
+      if (dc < 15.5) BABYLON.Color3.LerpToRef(tmp, plazaC, Math.min(1, (15.5 - dc) / 2) * 0.8, tmp);
+      if (dc > WORLD + 2) BABYLON.Color3.LerpToRef(tmp, shore, Math.min(1, (dc - WORLD - 2) / 4), tmp);
       for (let k = 0; k < 3; k++) { const j = (i / 3 + k) * 4; cols[j] = tmp.r; cols[j + 1] = tmp.g; cols[j + 2] = tmp.b; cols[j + 3] = 1; }
     }
     ground.setVerticesData(BABYLON.VertexBuffer.ColorKind, cols);
     const gm = new BABYLON.StandardMaterial('groundM', scene);
-    gm.diffuseColor = new BABYLON.Color3(1, 1, 1); gm.specularColor = BABYLON.Color3.Black();
-    ground.material = gm;
-  }
+    gm.diffuseColor = new BABYLON.Color3(1, 1, 1); gm.specularColor = id === 'eis' ? new BABYLON.Color3(0.15, 0.15, 0.2) : BABYLON.Color3.Black();
+    ground.material = gm; landMats.push(gm);
 
-  // Marktplatz mit Pflaster-Ring und Brunnen
-  const plaza = MB.CreateDisc('plaza', { radius: 13.5, tessellation: 40 }, scene);
-  plaza.rotation.x = Math.PI / 2; plaza.position.y = 0.03;
-  plaza.material = smat('#a88f60', 0);
-  const decor = [];
-  for (let i = 0; i < 36; i++) {
-    const a = i / 36 * Math.PI * 2;
-    decor.push(part('cyl', { diameter: 1.15, height: 0.12, tessellation: 6 }, i % 2 ? '#8c8478' : '#a39a8c', Math.cos(a) * 13.3, 0.06, Math.sin(a) * 13.3));
-  }
-  decor.push(part('cyl', { diameter: 2.3, height: 0.8, tessellation: 18 }, '#8e8e9a', 0, 0.4, 1));
-  decor.push(part('tor', { diameter: 2.2, thickness: 0.18, tessellation: 22 }, '#a3a3ae', 0, 0.82, 1));
-  decor.push(part('cyl', { diameter: 1.8, height: 0.02, tessellation: 18 }, '#3d8fe0', 0, 0.75, 1));
-  [-1, 1].forEach(s => decor.push(part('cyl', { diameter: 0.14, height: 1.6, tessellation: 6 }, '#6b4526', 0.95 * s, 1.4, 1)));
-  decor.push(part('box', { width: 2.3, height: 0.12, depth: 0.12 }, '#6b4526', 0, 2.2, 1));
-  decor.push(part('cyl', { diameterTop: 0.3, diameterBottom: 0.36, height: 0.3, tessellation: 10 }, '#7a5530', 0, 1.6, 1));
-  const decorMesh = group('decor', decor);
-  addBlob(0, 0, 1, 3.6);
-
-  const sea = MB.CreateGround('sea', { width: 600, height: 600 }, scene);
-  sea.position.y = -4.5; sea.material = mat('sea', 0.25, 0.55, 0.85);
-  const pondMat = mat('pond', 0.3, 0.65, 0.98, 0.2);
-  pondMat.alpha = 0.85; pondMat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6); pondMat.specularPower = 64;
-  PONDS.forEach((p, i) => {
-    const w = MB.CreateDisc('pond' + i, { radius: p.r + 0.3, tessellation: 22 }, scene);
-    w.rotation.x = Math.PI / 2; w.position.set(p.x, p.level - 0.12, p.z); w.material = pondMat; w.isPickable = false;
-    w.freezeWorldMatrix();
-  });
-
-  const solids = [{ x: 0, z: 1, r: 1.25 }];
-
-  // =====================================================================
-  // Rohstoff-Quellen
-  // =====================================================================
-  const nodes = [];
-  let seed = 7;
-  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const freeSpot = (minR, dMin, dMax) => {
-    for (let t = 0; t < 40; t++) {
-      const a = rand() * Math.PI * 2, d = dMin + rand() * (dMax - dMin);
-      const x = Math.cos(a) * d, z = Math.sin(a) * d;
-      if (PONDS.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 2 + minR)) continue;
-      if (nodes.every(o => (o.x - x) ** 2 + (o.z - z) ** 2 > (o.r + minR + 1.5) ** 2)) return { x, z };
+    // Marktplatz
+    const plaza = MB.CreateDisc('plaza', { radius: 13.5, tessellation: 40 }, scene);
+    plaza.rotation.x = Math.PI / 2; plaza.position.y = 0.03; plaza.material = smat(L.plaza, 0);
+    const decor = [];
+    for (let i = 0; i < 36; i++) {
+      const a = i / 36 * Math.PI * 2;
+      decor.push(part('cyl', { diameter: 1.15, height: 0.12, tessellation: 6 }, L.ring[i % 2], Math.cos(a) * 13.3, 0.06, Math.sin(a) * 13.3));
     }
-    return null;
-  };
+    decor.push(part('cyl', { diameter: 2.3, height: 0.8, tessellation: 18 }, '#8e8e9a', 0, 0.4, 1));
+    decor.push(part('tor', { diameter: 2.2, thickness: 0.18, tessellation: 22 }, '#a3a3ae', 0, 0.82, 1));
+    decor.push(part('cyl', { diameter: 1.8, height: 0.02, tessellation: 18 }, L.frozen ? '#cfeaff' : '#3d8fe0', 0, 0.75, 1));
+    [-1, 1].forEach(s => decor.push(part('cyl', { diameter: 0.14, height: 1.6, tessellation: 6 }, '#6b4526', 0.95 * s, 1.4, 1)));
+    decor.push(part('box', { width: 2.3, height: 0.12, depth: 0.12 }, '#6b4526', 0, 2.2, 1));
+    decor.push(part('cyl', { diameterTop: 0.3, diameterBottom: 0.36, height: 0.3, tessellation: 10 }, '#7a5530', 0, 1.6, 1));
+    group('decor', decor).freezeWorldMatrix();
+    addBlob(0, 0, 1, 3.6);
 
-  const trunk = MB.CreateCylinder('trunk', { height: 2, diameterTop: 0.45, diameterBottom: 0.7, tessellation: 7 }, scene);
-  trunk.material = smat('#7a5232', 0.02);
-  const crown = MB.CreateCylinder('crown', { height: 4, diameterTop: 0, diameterBottom: 3.4, tessellation: 7, subdivisions: 2 }, scene);
-  crown.convertToFlatShadedMesh(); crown.material = smat('#2f7a46', 0.05);
-  const crown2 = MB.CreateIcoSphere('crown2', { radius: 1.9, subdivisions: 1 }, scene);
-  crown2.material = smat('#7fb53a', 0.05);
-  const rock = MB.CreateIcoSphere('rock', { radius: 1, subdivisions: 1 }, scene);
-  rock.material = smat('#8f8f9a', 0.08);
-  const darkRock = rock.clone('darkRock'); darkRock.material = smat('#5f5a68', 0.08);
-  const oreSrc = {};
-  [['iron', '#c76a2c', 0.12], ['gold', '#ffcf33', 0.35], ['crystal', '#5ff2ff', 0.6]].forEach(([k, hex, em]) => {
-    const o = MB.CreatePolyhedron('ore_' + k, { type: 1, size: 0.32 }, scene);
-    o.material = smat(hex, 0.6, em); oreSrc[k] = o;
-  });
-  [trunk, crown, crown2, rock, darkRock, ...Object.values(oreSrc)].forEach(m => { m.isVisible = false; m.isPickable = false; });
+    const sea = MB.CreateGround('sea', { width: 600, height: 600 }, scene);
+    sea.position.y = -4.5; sea.material = smat(L.sea, 0.3);
+    pondMat = new BABYLON.StandardMaterial('pondM', scene);
+    pondMat.diffuseColor = C3(L.pond); pondMat.emissiveColor = C3(L.pond).scale(0.2);
+    pondMat.alpha = L.frozen ? 0.95 : 0.85; pondMat.specularColor = new BABYLON.Color3(0.7, 0.7, 0.7); pondMat.specularPower = 64;
+    landMats.push(pondMat);
+    PONDS.forEach((p, i) => {
+      const w = MB.CreateDisc('pond' + i, { radius: p.r + 0.3, tessellation: 22 }, scene);
+      w.rotation.x = Math.PI / 2; w.position.set(p.x, p.level - 0.12, p.z); w.material = pondMat; w.isPickable = false;
+      w.freezeWorldMatrix();
+    });
 
-  const addPart = (src, n, x, y, z, sx, sy, sz, ry, rx, rz) => {
-    const m = src.createInstance('i');
-    m.position.set(x, y, z); m.scaling.set(sx, sy, sz); m.rotation.set(rx || 0, ry || 0, rz || 0); m.isPickable = false;
-    n.parts.push({ m, base: m.position.clone(), scale: m.scaling.clone() });
-    return m;
-  };
-  const makeNode = (kind, x, z, r) => {
-    const n = { kind, x, z, r, hp: KINDS[kind].hp, alive: true, parts: [], shake: 0, dying: 0, respawn: 0, hidden: false };
-    nodes.push(n); return n;
-  };
-  for (let i = 0; i < 140; i++) {
-    const p = freeSpot(1, 17, WORLD - 2); if (!p) continue;
-    const y = heightAt(p.x, p.z), s = 0.8 + rand() * 0.7;
-    const n = makeNode('tree', p.x, p.z, 0.5 * s);
-    addPart(trunk, n, p.x, y + s, p.z, s, s, s);
-    const pine = rand() < 0.6;
-    addPart(pine ? crown : crown2, n, p.x, y + (pine ? 3.8 : 3.4) * s, p.z, s, s, s, rand() * 6);
-    const b = addBlob(p.x, y, p.z, 3.2 * s); n.parts.push({ m: b, base: b.position.clone(), scale: b.scaling.clone() });
-  }
-  const addRock = (kind, dMin, dMax, count) => {
-    for (let i = 0; i < count; i++) {
-      const p = freeSpot(1.5, dMin, dMax); if (!p) continue;
-      const s = kind === 'rock' ? 0.6 + rand() * 1.0 : 0.9 + rand() * 0.4;
-      const n = makeNode(kind, p.x, p.z, 0.9 * s);
-      const y = heightAt(p.x, p.z);
-      addPart(kind === 'rock' ? rock : darkRock, n, p.x, y + 0.2 * s, p.z, s * 1.2, s * 0.8, s, rand() * 6, rand() * 0.4, rand() * 0.4);
-      if (kind !== 'rock') {
-        const cnt = 3 + Math.floor(rand() * 2);
-        for (let c = 0; c < cnt; c++) {
-          const a = (c / cnt) * Math.PI * 2 + rand();
-          const st = kind === 'crystal' ? 1.4 + rand() * 0.8 : 1;
-          addPart(oreSrc[kind], n, p.x + Math.cos(a) * 0.55 * s, y + 0.55 * s + rand() * 0.2, p.z + Math.sin(a) * 0.55 * s, 1, st, 1, rand() * 6, (rand() - 0.5) * 0.8, (rand() - 0.5) * 0.8);
-        }
+    // ---------- Quellen für Bäume, Steine usw. ----------
+    let seed = 7 + LAND_ORDER.indexOf(id) * 1000;
+    const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const freeSpot = (minR, dMin, dMax) => {
+      for (let t = 0; t < 40; t++) {
+        const a = rand() * Math.PI * 2, d = dMin + rand() * (dMax - dMin);
+        const x = Math.cos(a) * d, z = Math.sin(a) * d;
+        if (PONDS.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 2 + minR)) continue;
+        if (nodes.every(o => (o.x - x) ** 2 + (o.z - z) ** 2 > (o.r + minR + 1.5) ** 2)) return { x, z };
       }
-      const b = addBlob(p.x, y, p.z, 2.6 * s); n.parts.push({ m: b, base: b.position.clone(), scale: b.scaling.clone() });
+      return null;
+    };
+    const src = {};
+    const hide = m => { m.isVisible = false; m.isPickable = false; return m; };
+    src.trunk = hide(group('trunkS', [part('cyl', { height: 2, diameterTop: 0.45, diameterBottom: 0.7, tessellation: 7 }, '#7a5232', 0, 0, 0)]));
+    src.pine = hide(MB.CreateCylinder('pineS', { height: 4, diameterTop: 0, diameterBottom: 3.4, tessellation: 7, subdivisions: 2 }, scene));
+    src.pine.convertToFlatShadedMesh(); src.pine.material = smat(id === 'berg' ? '#24563a' : '#2f7a46', 0.05);
+    src.round = hide(MB.CreateIcoSphere('roundS', { radius: 1.9, subdivisions: 1 }, scene)); src.round.material = smat('#7fb53a', 0.05);
+    src.snowpine = hide(group('snowpineS', [
+      part('cyl', { height: 4, diameterTop: 0, diameterBottom: 3.4, tessellation: 7 }, '#2e5e4a', 0, 0, 0),
+      part('cyl', { height: 1.5, diameterTop: 0, diameterBottom: 1.6, tessellation: 7 }, '#f4f8fb', 0, 1.3, 0),
+      part('cyl', { height: 0.35, diameterTop: 2.2, diameterBottom: 3.0, tessellation: 7 }, '#f4f8fb', 0, -0.6, 0)]));
+    src.palmTrunk = hide(group('palmT', [0, 1, 2, 3].map(i => part('cyl', { height: 1.1, diameterTop: 0.36, diameterBottom: 0.46, tessellation: 7 }, i % 2 ? '#a27a4a' : '#8a6438', Math.sin(i * 0.15) * 0.25 * i, i * 1.0, 0, null, [0, 0, -0.08 * i]))));
+    src.palmLeaves = hide(group('palmL', [0, 1, 2, 3, 4, 5, 6].map(i => {
+      const a = i / 7 * Math.PI * 2;
+      return part('box', { width: 0.55, height: 0.06, depth: 2.4 }, i % 2 ? '#3f9a3a' : '#5fb84a', Math.sin(a) * 1.0, -0.25, Math.cos(a) * 1.0, null, [0.45, a, 0]);
+    }).concat([part('sph', { diameter: 0.5, segments: 6 }, '#6b4a2a', 0, -0.15, 0)])));
+    src.cactus = hide(group('cactusS', [
+      part('caps', { radius: 0.35, height: 2.4, tessellation: 10 }, '#3f8a3a', 0, 1.2, 0),
+      part('caps', { radius: 0.22, height: 0.9, tessellation: 8 }, '#4a9a42', 0.55, 1.5, 0),
+      part('caps', { radius: 0.22, height: 0.5, tessellation: 8 }, '#4a9a42', 0.35, 1.1, 0, null, [0, 0, Math.PI / 2]),
+      part('caps', { radius: 0.2, height: 0.8, tessellation: 8 }, '#4a9a42', -0.5, 1.9, 0),
+      part('caps', { radius: 0.2, height: 0.45, tessellation: 8 }, '#4a9a42', -0.32, 1.55, 0, null, [0, 0, Math.PI / 2]),
+      part('sph', { diameter: 0.25, segments: 6 }, '#ff5d9a', 0, 2.42, 0), part('sph', { diameter: 0.2, segments: 6 }, '#ff8ab8', 0.55, 1.98, 0)]));
+    src.rock = hide(MB.CreateIcoSphere('rockS', { radius: 1, subdivisions: 1 }, scene));
+    src.rock.material = smat(id === 'wueste' ? '#c49a6a' : id === 'eis' ? '#a9b8c6' : '#8f8f9a', 0.08);
+    src.dark = hide(MB.CreateIcoSphere('darkS', { radius: 1, subdivisions: 1 }, scene)); src.dark.material = smat('#5f5a68', 0.08);
+    src.snowcap = hide(MB.CreateSphere('capS', { diameter: 1.9, segments: 8, slice: 0.5 }, scene)); src.snowcap.material = smat('#f4f8fb', 0.2);
+    const ores = { iron: ['#c76a2c', 0.12], gold: ['#ffcf33', 0.35], crystal: ['#5ff2ff', 0.6], silver: ['#e6edf5', 0.35] };
+    Object.keys(ores).forEach(k => { const o = hide(MB.CreatePolyhedron('ore_' + k, { type: 1, size: 0.32 }, scene)); o.material = smat(ores[k][0], 0.6, ores[k][1]); src['ore_' + k] = o; });
+    src.ice = hide(group('iceS', [0, 1, 2, 3, 4].map(i => {
+      const a = i / 5 * Math.PI * 2;
+      return part('poly', { type: 1, size: 0.4 }, i % 2 ? '#bfefff' : '#8fd8ff', i ? Math.cos(a) * 0.45 : 0, i ? 0.6 : 1.0, i ? Math.sin(a) * 0.45 : 0, [1, i ? 2.2 : 3.2, 1], [i ? Math.sin(a) * 0.4 : 0, a, i ? Math.cos(a) * 0.4 : 0]);
+    }), null, vcGlow));
+
+    const addPart = (s, n, x, y, z, sx, sy, sz, ry, rx, rz) => {
+      const m = s.createInstance('i');
+      m.position.set(x, y, z); m.scaling.set(sx, sy, sz); m.rotation.set(rx || 0, ry || 0, rz || 0); m.isPickable = false;
+      n.parts.push({ m, base: m.position.clone(), scale: m.scaling.clone() });
+      return m;
+    };
+    const makeNode = (kind, x, z, r) => { const n = { kind, x, z, r, hp: KINDS[kind].hp, alive: true, parts: [], shake: 0, dying: 0, respawn: 0, hidden: false, hideIdx: [] }; nodes.push(n); return n; };
+    const finishNode = (n, size) => { const y = heightAt(n.x, n.z); const b = addBlob(n.x, y, n.z, size); n.parts.push({ m: b, base: b.position.clone(), scale: b.scaling.clone() }); };
+
+    for (let i = 0; i < L.treeCount; i++) {
+      const p = freeSpot(1, 17, WORLD - 2); if (!p) continue;
+      const y = heightAt(p.x, p.z), s = 0.8 + rand() * 0.7;
+      const n = makeNode('tree', p.x, p.z, 0.5 * s);
+      const type = L.trees[Math.floor(rand() * L.trees.length)];
+      if (type === 'palm') {
+        addPart(src.palmTrunk, n, p.x, y + 0.5 * s, p.z, s, s, s, rand() * 6);
+        const top = n.parts[0].m; top.computeWorldMatrix(true);
+        addPart(src.palmLeaves, n, p.x + Math.cos(-top.rotation.y) * 0.6 * s, y + 4.2 * s, p.z + Math.sin(-top.rotation.y) * 0.6 * s, s, s, s, rand() * 6);
+        n.hideIdx = [1];
+      } else {
+        addPart(src.trunk, n, p.x, y + s, p.z, s, s, s);
+        const crownSrc = type === 'round' ? src.round : type === 'snowpine' ? src.snowpine : src.pine;
+        addPart(crownSrc, n, p.x, y + (type === 'round' ? 3.4 : 3.8) * s, p.z, s, s, s, rand() * 6);
+        n.hideIdx = [1];
+      }
+      finishNode(n, 3.2 * s);
     }
-  };
-  addRock('rock', 17, WORLD - 2, 45);
-  addRock('iron', 17, 45, 16);
-  addRock('gold', 35, WORLD - 3, 8);
-  addRock('crystal', 55, WORLD - 3, 6);
+    for (let i = 0; i < (L.cactus || 0); i++) {
+      const p = freeSpot(1, 17, WORLD - 2); if (!p) continue;
+      const s = 0.8 + rand() * 0.5, n = makeNode('cactus', p.x, p.z, 0.45 * s);
+      addPart(src.cactus, n, p.x, heightAt(p.x, p.z), p.z, s, s, s, rand() * 6);
+      finishNode(n, 1.8 * s);
+    }
+    const addRock = (kind, dMin, dMax, count) => {
+      for (let i = 0; i < count; i++) {
+        const p = freeSpot(1.5, dMin, dMax); if (!p) continue;
+        const y = heightAt(p.x, p.z);
+        if (kind === 'ice') {
+          const s = 0.9 + rand() * 0.5, n = makeNode('ice', p.x, p.z, 0.7 * s);
+          addPart(src.ice, n, p.x, y, p.z, s, s, s, rand() * 6);
+          finishNode(n, 2 * s); continue;
+        }
+        const s = kind === 'rock' ? 0.6 + rand() * 1.0 : 0.9 + rand() * 0.4;
+        const n = makeNode(kind, p.x, p.z, 0.9 * s);
+        addPart(kind === 'rock' ? src.rock : src.dark, n, p.x, y + 0.2 * s, p.z, s * 1.2, s * 0.8, s, rand() * 6, rand() * 0.4, rand() * 0.4);
+        if (id === 'eis' && kind === 'rock') addPart(src.snowcap, n, p.x, y + 0.55 * s, p.z, s * 1.1, s * 0.6, s * 0.95, rand() * 6);
+        if (kind !== 'rock') {
+          const cnt = 3 + Math.floor(rand() * 2);
+          for (let c = 0; c < cnt; c++) {
+            const a = (c / cnt) * Math.PI * 2 + rand();
+            const st = kind === 'crystal' ? 1.4 + rand() * 0.8 : 1;
+            addPart(src['ore_' + kind], n, p.x + Math.cos(a) * 0.55 * s, y + 0.55 * s + rand() * 0.2, p.z + Math.sin(a) * 0.55 * s, 1, st, 1, rand() * 6, (rand() - 0.5) * 0.8, (rand() - 0.5) * 0.8);
+          }
+        }
+        finishNode(n, 2.6 * s);
+      }
+    };
+    const R = L.rocks;
+    addRock('rock', 17, WORLD - 2, R.rock || 0);
+    addRock('iron', 17, 50, R.iron || 0);
+    addRock('ice', 20, WORLD - 3, R.ice || 0);
+    addRock('silver', 30, WORLD - 3, R.silver || 0);
+    addRock('gold', id === 'wueste' ? 22 : 35, WORLD - 3, R.gold || 0);
+    addRock('crystal', 55, WORLD - 3, R.crystal || 0);
 
-  for (let i = 0; i < 90; i++) {
-    const a = (i / 90) * Math.PI * 2;
-    const x = Math.cos(a) * (WORLD + 1.5), z = Math.sin(a) * (WORLD + 1.5);
-    const r = rock.createInstance('b' + i), s = 1.2 + rand();
-    r.position.set(x, heightAt(x, z), z); r.scaling.set(s, s * 1.4, s); r.rotation.y = rand() * 6;
-    r.isPickable = false; r.freezeWorldMatrix();
-  }
+    for (let i = 0; i < 90; i++) {
+      const a = (i / 90) * Math.PI * 2;
+      const x = Math.cos(a) * (WORLD + 1.5), z = Math.sin(a) * (WORLD + 1.5);
+      const r = src.rock.createInstance('b'), s = 1.2 + rand();
+      r.position.set(x, heightAt(x, z), z); r.scaling.set(s, s * 1.4, s); r.rotation.y = rand() * 6;
+      r.isPickable = false; r.freezeWorldMatrix();
+    }
 
-  // Grasbüschel und Blumen (viele Kopien eines einzigen Teils = sehr günstig)
-  const tuft = group('tuft', [0, 1, 2].map(i => part('cyl', { diameterTop: 0, diameterBottom: 0.16, height: 0.55 + i * 0.12, tessellation: 3 }, ['#4f9a36', '#6fb43e', '#3d8a2e'][i],
-    Math.cos(i * 2.1) * 0.08, 0.27 + i * 0.06, Math.sin(i * 2.1) * 0.08, null, [Math.cos(i * 2.1) * 0.3, 0, Math.sin(i * 2.1) * 0.3])));
-  tuft.isVisible = false;
-  const flowers = ['#ff5d73', '#ffd23f', '#ffffff', '#b77cff'].map((hex, i) => {
-    const f = group('flower' + i, [part('cyl', { diameter: 0.04, height: 0.4, tessellation: 4 }, '#3d8a2e', 0, 0.2, 0), part('sph', { diameter: 0.18, segments: 6 }, hex, 0, 0.42, 0), part('sph', { diameter: 0.08, segments: 4 }, '#ffb400', 0, 0.47, 0.04)]);
-    f.isVisible = false; return f;
-  });
-  for (let i = 0; i < 520; i++) {
-    const a = rand() * Math.PI * 2, d = 15 + rand() * (WORLD - 16), x = Math.cos(a) * d, z = Math.sin(a) * d;
-    if (PONDS.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 0.5)) continue;
-    const src = rand() < 0.82 ? tuft : flowers[Math.floor(rand() * flowers.length)];
-    const g = src.createInstance('g'); const s = 0.8 + rand() * 0.7;
-    g.position.set(x, heightAt(x, z), z); g.scaling.setAll(s); g.rotation.y = rand() * 6; g.isPickable = false;
-    g.freezeWorldMatrix();
-  }
+    // Gras, Blumen, Schneehügel
+    const tuft = hide(group('tuft', [0, 1, 2].map(i => part('cyl', { diameterTop: 0, diameterBottom: 0.16, height: 0.55 + i * 0.12, tessellation: 3 }, L.tuft[i],
+      Math.cos(i * 2.1) * 0.08, 0.27 + i * 0.06, Math.sin(i * 2.1) * 0.08, null, [Math.cos(i * 2.1) * 0.3, 0, Math.sin(i * 2.1) * 0.3]))));
+    const deco = [tuft];
+    L.flowers.forEach(hex => deco.push(hide(group('flower', [part('cyl', { diameter: 0.04, height: 0.4, tessellation: 4 }, '#3d8a2e', 0, 0.2, 0), part('sph', { diameter: 0.18, segments: 6 }, hex, 0, 0.42, 0), part('sph', { diameter: 0.08, segments: 4 }, '#ffb400', 0, 0.47, 0.04)]))));
+    if (L.mounds) deco.push(hide(group('mound', [part('sph', { diameter: 1.2, segments: 8 }, '#ffffff', 0, 0, 0, [1, 0.35, 1])])));
+    if (id === 'wueste') deco.push(hide(group('pebble', [part('ico', { radius: 0.18, subdivisions: 1 }, '#b08a5a', 0, 0.08, 0), part('ico', { radius: 0.12, subdivisions: 1 }, '#9a7a4a', 0.25, 0.05, 0.1)])));
+    for (let i = 0; i < 500; i++) {
+      const a = rand() * Math.PI * 2, d = 15 + rand() * (WORLD - 16), x = Math.cos(a) * d, z = Math.sin(a) * d;
+      if (PONDS.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 0.5)) continue;
+      const s0 = rand() < 0.8 || deco.length === 1 ? tuft : deco[1 + Math.floor(rand() * (deco.length - 1))];
+      const g = s0.createInstance('g'); const s = 0.8 + rand() * 0.7;
+      g.position.set(x, heightAt(x, z), z); g.scaling.setAll(s); g.rotation.y = rand() * 6; g.isPickable = false;
+      g.freezeWorldMatrix();
+    }
 
-  const holes = [];
-  const holeMat = smat('#5e4026', 0);
-  for (let i = 0; i < 30; i++) {
-    const h = MB.CreateDisc('hole' + i, { radius: 0.55, tessellation: 9 }, scene);
-    h.rotation.x = Math.PI / 2; h.material = holeMat; h.isVisible = false; h.isPickable = false;
-    holes.push(h);
+    const holeMat = smat(id === 'eis' ? '#9fb3c4' : id === 'wueste' ? '#a8844e' : '#5e4026', 0);
+    for (let i = 0; i < 30; i++) {
+      const h = MB.CreateDisc('hole' + i, { radius: 0.55, tessellation: 9 }, scene);
+      h.rotation.x = Math.PI / 2; h.material = holeMat; h.isVisible = false; h.isPickable = false;
+      holes.push(h);
+    }
+
+    // Händler-Stände
+    SHOPS = SHOP_BASE.map((b, i) => Object.assign({}, b, { name: L.shops[i][0], look: Object.assign({}, b.look, { shirt: L.shops[i][1] }) }));
+    SHOPS.forEach(s => {
+      const node = TN('stall' + s.id);
+      node.position.set(s.x, heightAt(s.x, s.z), s.z);
+      const ry = Math.atan2(0 - s.x, -1 - s.z);
+      node.rotation.y = ry;
+      const W = id === 'eis' ? '#8a6a4c' : '#9a6a3c', D = '#6b4526', P = [];
+      P.push(part('box', { width: 3, height: 1.0, depth: 0.75 }, W, 0, 0.5, 1.15));
+      P.push(part('box', { width: 3.2, height: 0.09, depth: 0.9 }, D, 0, 1.05, 1.15));
+      [[-1.5, -0.8], [1.5, -0.8], [-1.5, 1.55], [1.5, 1.55]].forEach(([x, z]) => P.push(part('cyl', { diameter: 0.14, height: 2.9, tessellation: 6 }, D, x, 1.45, z)));
+      for (let i = 0; i < 7; i++) P.push(part('box', { width: 0.48, height: 0.06, depth: 3.0 }, s.awning[i % 2], -1.44 + i * 0.48, 2.95, 0.4, null, [0.22, 0, 0]));
+      if (id === 'eis') P.push(part('box', { width: 3.4, height: 0.12, depth: 3.1 }, '#f4f8fb', 0, 3.05, 0.4, null, [0.22, 0, 0]));
+      P.push(part('box', { width: 3.36, height: 0.25, depth: 0.04 }, s.awning[0], 0, 2.55, 1.9, null, [0.22, 0, 0]));
+      if (s.id === 'general') {
+        P.push(part('cyl', { diameter: 0.7, height: 0.9, tessellation: 12 }, W, -2.1, 0.45, 1.3));
+        P.push(part('box', { size: 0.6 }, D, 2.1, 0.3, 1.3));
+        for (let i = 0; i < 5; i++) P.push(part('sph', { diameter: 0.18, segments: 6 }, i % 2 ? '#d63a3a' : '#7cc242', -0.9 + i * 0.13, 1.18, 1.1 + (i % 2) * 0.12));
+        P.push(part('cyl', { diameter: 0.16, height: 0.28, tessellation: 8 }, '#e94fb0', 0.6, 1.24, 1.1));
+        P.push(part('cyl', { diameter: 0.16, height: 0.28, tessellation: 8 }, '#4fb0e9', 0.85, 1.24, 1.2));
+      } else if (s.id === 'weapons') {
+        P.push(part('box', { width: 0.09, height: 0.9, depth: 0.03 }, '#d5dbe5', -0.8, 1.55, 1.05));
+        P.push(part('box', { width: 0.3, height: 0.05, depth: 0.08 }, '#4a2e18', -0.8, 1.12, 1.05));
+        P.push(part('cyl', { diameter: 0.06, height: 1.3, tessellation: 6 }, '#6b4526', 0, 1.7, 1.05));
+        P.push(part('sph', { diameter: 0.22, segments: 8 }, '#3d7bff', 0, 2.4, 1.05));
+        P.push(part('box', { width: 0.07, height: 0.4, depth: 0.03 }, '#7cff6b', 0.8, 1.3, 1.05));
+        P.push(part('cyl', { diameterTop: 0.5, diameterBottom: 0.35, height: 0.5, tessellation: 6 }, '#3a3a44', 2.1, 0.25, 1.4));
+      } else {
+        P.push(part('sph', { diameter: 0.5, segments: 10, slice: 0.55 }, '#c9ced8', -0.7, 1.1, 1.1));
+        P.push(part('cyl', { diameter: 0.75, height: 0.07, tessellation: 16 }, '#ffc533', 0.6, 1.5, 1.15, null, [Math.PI / 2 - 0.2, 0, 0]));
+        P.push(part('caps', { radius: 0.35, height: 1.1, tessellation: 12 }, '#9aa3b0', 2.2, 1.0, 1.2, [1, 1, 0.7]));
+      }
+      const stall = group('stallM' + s.id, P, node);
+      const sign = makeSign(s.id, s.sign); sign.parent = node; sign.position.set(0, 3.75, 0.6);
+      addBlob(s.x, heightAt(s.x, s.z), s.z, 4.6);
+      const c = makeCharacter('npc_' + s.id, s.look);
+      c.root.parent = node; c.shadow.parent = node; c.shadow.position.set(0, 0.06, 0);
+      npcs.push({ s, c, node, ry, wave: 0 });
+      const toWorld = (lx, lz) => ({ x: s.x + lx * Math.cos(ry) + lz * Math.sin(ry), z: s.z - lx * Math.sin(ry) + lz * Math.cos(ry) });
+      [[0, 0, 0.6], [-1.1, 1.15, 0.55], [0, 1.15, 0.55], [1.1, 1.15, 0.55], [-1.5, -0.8, 0.3], [1.5, -0.8, 0.3], [-2.1, 1.3, 0.45], [2.1, 1.3, 0.45]]
+        .forEach(([lx, lz, r]) => { const w = toWorld(lx, lz); solids.push({ x: w.x, z: w.z, r }); });
+      s.front = toWorld(0, 2.2);
+      stall.computeWorldMatrix(true); stall.freezeWorldMatrix();
+    });
+
+    // Reisetor
+    {
+      const px = 8.5, pz = -7, node = TN('portal');
+      node.position.set(px, 0, pz);
+      const ry = Math.atan2(-px, -pz); node.rotation.y = ry;
+      const P = [];
+      [-1, 1].forEach(s => {
+        P.push(part('box', { width: 0.6, height: 3.4, depth: 0.6 }, '#7d7f8f', 1.3 * s, 1.7, 0));
+        P.push(part('box', { width: 0.8, height: 0.3, depth: 0.8 }, '#5f6172', 1.3 * s, 0.15, 0));
+        P.push(part('sph', { diameter: 0.35, segments: 8 }, '#ffd23f', 1.3 * s, 3.65, 0));
+      });
+      P.push(part('box', { width: 3.4, height: 0.45, depth: 0.7 }, '#6a6c7c', 0, 3.4, 0));
+      P.push(part('cyl', { diameter: 3.6, height: 0.12, tessellation: 24 }, '#8a8c9c', 0, 0.06, 0.2));
+      group('portalM', P, node);
+      const swirlTex = new BABYLON.DynamicTexture('swirlT', { width: 128, height: 128 }, scene, false);
+      { const c = swirlTex.getContext(); const g = c.createRadialGradient(64, 64, 4, 64, 64, 62);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(180,120,255,0.95)'); g.addColorStop(0.75, 'rgba(60,160,255,0.85)'); g.addColorStop(1, 'rgba(40,80,200,0)');
+        c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+        c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = 5;
+        for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(64, 64, 18 + i * 14, i, i + 2.4); c.stroke(); }
+        swirlTex.update(); swirlTex.hasAlpha = true; }
+      const sm = new BABYLON.StandardMaterial('swirlM', scene);
+      sm.diffuseTexture = swirlTex; sm.emissiveTexture = swirlTex; sm.opacityTexture = swirlTex; sm.disableLighting = true; sm.backFaceCulling = false;
+      landMats.push(sm);
+      const swirl = MB.CreateDisc('swirl', { radius: 1.05, tessellation: 28 }, scene);
+      swirl.parent = node; swirl.position.set(0, 1.7, 0); swirl.scaling.y = 1.45; swirl.material = sm; swirl.isPickable = false;
+      const sign = makeSign('portal', '🧭 Reisetor', '#3a2a6a'); sign.parent = node; sign.position.set(0, 4.35, 0); sign.scaling.setAll(0.8);
+      const toWorld = (lx, lz) => ({ x: px + lx * Math.cos(ry) + lz * Math.sin(ry), z: pz - lx * Math.sin(ry) + lz * Math.cos(ry) });
+      [-1.3, 1.3].forEach(lx => { const w = toWorld(lx, 0); solids.push({ x: w.x, z: w.z, r: 0.5 }); });
+      portal = { node, swirl, front: toWorld(0, 1.6), back: toWorld(0, -1.6), x: px, z: pz };
+    }
+
+    // Schneefall im Eisland
+    if (L.weather === 'snow') {
+      const st = new BABYLON.DynamicTexture('snowT', { width: 32, height: 32 }, scene, false);
+      { const c = st.getContext(); const g = c.createRadialGradient(16, 16, 1, 16, 16, 15); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 32, 32); st.update(); st.hasAlpha = true; }
+      snow = new BABYLON.ParticleSystem('snow', 350, scene);
+      snow.particleTexture = st;
+      snow.emitter = new BABYLON.Vector3(0, 14, 0);
+      snow.minEmitBox = new BABYLON.Vector3(-22, 0, -22); snow.maxEmitBox = new BABYLON.Vector3(22, 0, 22);
+      snow.direction1 = new BABYLON.Vector3(-0.4, -1, -0.2); snow.direction2 = new BABYLON.Vector3(0.4, -1, 0.3);
+      snow.minSize = 0.08; snow.maxSize = 0.2; snow.minLifeTime = 5; snow.maxLifeTime = 7;
+      snow.minEmitPower = 1.5; snow.maxEmitPower = 2.5; snow.emitRate = 60;
+      snow.color1 = new BABYLON.Color4(1, 1, 1, 0.9); snow.color2 = new BABYLON.Color4(0.9, 0.95, 1, 0.8); snow.colorDead = new BABYLON.Color4(1, 1, 1, 0);
+      snow.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
+      snow.start();
+    }
+
+    // Alles Neue merken (zum späteren Entfernen)
+    scene.meshes.forEach(m => { if (!m0.has(m)) landStuff.push(m); });
+    scene.transformNodes.forEach(t => { if (!t0.has(t)) landStuff.push(t); });
+    [ground, plaza, sea].forEach(m => { m.isPickable = false; m.freezeWorldMatrix(); });
+    $('landPill').textContent = '📍 ' + L.e + ' ' + L.name;
   }
-  let holeIdx = 0;
 
   // =====================================================================
-  // Figuren: wenige zusammengefügte Teile statt vieler Einzelteile
+  // Figuren
   // =====================================================================
   function makeCharacter(name, look, extraBody, separateBoots) {
     const root = TN(name), body = TN(name + 'B', root);
     const sk = look.skin, hy = 2.52;
     const B = [
       part('caps', { radius: 0.4, height: 1.15, tessellation: 16 }, look.shirt, 0, 1.62, 0, [1, 1, 0.72]),
-      part('cyl', { diameter: 0.84, height: 0.14, tessellation: 16 }, '#5a3a1e', 0, 1.2, 0, [1, 1, 0.74]),
+      part('cyl', { diameter: 0.84, height: 0.14, tessellation: 16 }, look.belt || '#5a3a1e', 0, 1.2, 0, [1, 1, 0.74]),
       part('box', { width: 0.14, height: 0.12, depth: 0.04 }, '#ffd23f', 0, 1.2, 0.31),
       part('cyl', { diameter: 0.26, height: 0.25, tessellation: 10 }, sk, 0, 2.2, 0),
       part('sph', { diameter: 0.74, segments: 14 }, sk, 0, hy, 0),
       part('sph', { diameter: 0.1, segments: 6 }, sk, 0, hy - 0.04, 0.37),
-      part('tor', { diameter: 0.14, thickness: 0.025, tessellation: 12 }, '#8a3b3b', 0, hy - 0.15, 0.32, [1, 1, 0.5], [Math.PI / 2 - 0.35, 0, 0])
+      part('tor', { diameter: 0.14, thickness: 0.025, tessellation: 12 }, look.lips || '#8a3b3b', 0, hy - 0.15, 0.32, [1, 1, 0.5], [Math.PI / 2 - 0.35, 0, 0])
     ];
     [-1, 1].forEach(sx => {
       B.push(part('sph', { diameter: 0.15, segments: 8 }, '#ffffff', 0.13 * sx, hy + 0.04, 0.29));
-      B.push(part('sph', { diameter: 0.08, segments: 6 }, '#1d1d2b', 0.13 * sx, hy + 0.04, 0.355));
+      B.push(part('sph', { diameter: 0.08, segments: 6 }, look.eyes || '#1d1d2b', 0.13 * sx, hy + 0.04, 0.355));
       B.push(part('sph', { diameter: 0.03, segments: 4 }, '#ffffff', 0.13 * sx + 0.02, hy + 0.06, 0.39));
       B.push(part('sph', { diameter: 0.14, segments: 6 }, sk, 0.36 * sx, hy, 0, [0.5, 1, 1]));
       B.push(part('sph', { diameter: 0.1, segments: 6 }, '#f29a8a', 0.2 * sx, hy - 0.09, 0.27, [1, 1, 0.4]));
+      if (look.lashes) B.push(part('box', { width: 0.12, height: 0.025, depth: 0.03 }, '#1d1d2b', 0.14 * sx, hy + 0.12, 0.33, null, [0, 0, -0.25 * sx]));
     });
     if (look.beard) B.push(part('sph', { diameter: 0.5, segments: 10 }, look.beard, 0, hy - 0.24, 0.17, [1, 0.85, 0.7]));
     if (look.skirt) B.push(part('cyl', { diameterTop: 0.84, diameterBottom: 1.2, height: 0.75, tessellation: 18 }, look.skirt, 0, 0.9, 0, [1, 1, 0.85]));
+    if (look.robe) B.push(part('cyl', { diameterTop: 0.86, diameterBottom: 1.25, height: 1.0, tessellation: 18 }, look.robe, 0, 0.78, 0, [1, 1, 0.85]));
     if (look.apron) B.push(part('box', { width: 0.6, height: 0.95, depth: 0.04 }, look.apron, 0, 1.15, 0.33, null, [-0.12, 0, 0]));
+    if (look.cape) B.push(part('box', { width: 0.85, height: 1.35, depth: 0.05 }, look.cape, 0, 1.45, -0.34, null, [0.12, 0, 0]));
+    if (look.scarf) B.push(part('tor', { diameter: 0.42, thickness: 0.12, tessellation: 14 }, look.scarf, 0, 2.17, 0.02));
     if (extraBody) extraBody.forEach(p => B.push(p));
     group(name + 'Body', B, body);
 
@@ -463,173 +689,147 @@
         Hh.push(part('caps', { radius: 0.3, height: 0.95, tessellation: 12 }, look.hair, 0, hy - 0.25, -0.2, [1, 1, 0.6]));
         [-1, 1].forEach(sx => Hh.push(part('caps', { radius: 0.09, height: 0.6, tessellation: 8 }, look.hair, 0.3 * sx, hy - 0.15, 0.05)));
       }
+      if (look.hat === 'wizard') {
+        Hh.push(part('cyl', { diameter: 1.0, height: 0.06, tessellation: 18 }, look.hatColor, 0, hy + 0.3, -0.02));
+        Hh.push(part('cyl', { diameterTop: 0, diameterBottom: 0.6, height: 0.85, tessellation: 14 }, look.hatColor, 0.04, hy + 0.72, -0.06, null, [-0.15, 0, -0.12]));
+        Hh.push(part('sph', { diameter: 0.12, segments: 6 }, '#ffd23f', 0.1, hy + 1.08, -0.12));
+      }
+      if (look.hat === 'hood') Hh.push(part('sph', { diameter: 0.9, segments: 12, slice: 0.6 }, look.hatColor, 0, hy + 0.02, -0.1, [1, 1, 1.05], [-0.4, 0, 0]));
       hair = group(name + 'Hair', Hh, body);
     }
     let bootM = null;
-    if (separateBoots) { bootM = new BABYLON.StandardMaterial(name + 'boot', scene); bootM.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2); bootM.diffuseColor = BABYLON.Color3.FromHexString(look.boots); }
+    if (separateBoots) { bootM = new BABYLON.StandardMaterial(name + 'boot', scene); bootM.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2); bootM.diffuseColor = C3(look.boots); }
     const limb = (n, x, y, r, len, hex, handHex, boot) => {
       const p = TN(name + n, body); p.position.set(x, y, 0);
-      const L = [part('caps', { radius: r, height: len, tessellation: 10 }, hex, 0, -len / 2, 0)];
-      if (handHex) L.push(part('sph', { diameter: r * 2 + 0.06, segments: 8 }, handHex, 0, -len + 0.02, 0));
-      if (boot && !separateBoots) L.push(part('caps', { radius: 0.17, height: 0.5, tessellation: 10 }, boot, 0, -0.93, 0.07, null, [Math.PI / 2, 0, 0]));
-      group(name + n + 'M', L, p);
+      const Lp = [part('caps', { radius: r, height: len, tessellation: 10 }, hex, 0, -len / 2, 0)];
+      if (handHex) Lp.push(part('sph', { diameter: r * 2 + 0.06, segments: 8 }, handHex, 0, -len + 0.02, 0));
+      if (boot && !separateBoots) Lp.push(part('caps', { radius: 0.17, height: 0.5, tessellation: 10 }, boot, 0, -0.93, 0.07, null, [Math.PI / 2, 0, 0]));
+      group(name + n + 'M', Lp, p);
       if (boot && separateBoots) { const b = part('caps', { radius: 0.17, height: 0.5, tessellation: 10 }, null, 0, -0.93, 0.07, null, [Math.PI / 2, 0, 0]); b.parent = p; b.material = bootM; b.isPickable = false; }
       return p;
     };
     const legL = limb('legL', -0.2, 1.1, 0.16, 1.0, look.pants, null, look.boots);
     const legR = limb('legR', 0.2, 1.1, 0.16, 1.0, look.pants, null, look.boots);
-    const armL = limb('armL', -0.56, 2.02, 0.12, 0.86, look.shirt, sk);
-    const armR = limb('armR', 0.56, 2.02, 0.12, 0.86, look.shirt, sk);
+    const armL = limb('armL', -0.56, 2.02, 0.12, 0.86, look.sleeve || look.shirt, sk);
+    const armR = limb('armR', 0.56, 2.02, 0.12, 0.86, look.sleeve || look.shirt, sk);
     armL.rotation.z = -0.08; armR.rotation.z = 0.08;
     const shadow = addBlob(0, 0, 0, 1.6);
     return { root, body, hair, legL, legR, armL, armR, bootM, shadow, hy };
   }
 
-  // ---------- Spielfigur ----------
-  const H = makeCharacter('hero', { skin: '#f2c39b', shirt: '#3559b5', pants: '#3b3346', boots: '#5b3a22', hair: '#6b3e1f', hairStyle: 'short' }, [
-    part('caps', { radius: 0.32, height: 0.85, tessellation: 12 }, '#8a5a2b', 0, 1.68, -0.4, [1, 1, 0.55]),
-    part('caps', { radius: 0.13, height: 0.8, tessellation: 10 }, '#c94f3d', 0, 2.15, -0.42, null, [0, 0, Math.PI / 2])
-  ], true);
-  const hero = H.root, body = H.body, legL = H.legL, legR = H.legR, armL = H.armL, armR = H.armR;
-  hero.position.set(-2.5, heightAt(-2.5, -6), -6);
-
-  // ---------- Werkzeuge in der Hand ----------
+  // ---------- Spielfigur (wird bei Geschlecht/Klasse neu gebaut) ----------
   const handleMat = smat('#7a4f2a', 0.1);
-  const headMats = {}, toolNodes = {};
-  const tierColor = (tool, tier) => {
-    if (tier === 3) return tool === 'pick' ? '#5ff2ff' : '#ffc533';
-    if (tier === 2) return '#cfd5e2';
-    return tool === 'shovel' || tool === 'bucket' ? '#9e7347' : '#80808a';
+  const headMats = {};
+  TOOL_ORDER.forEach(t => { const hm = headMats[t] = new BABYLON.StandardMaterial('head_' + t, scene); hm.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5); hm.specularPower = 48; });
+  const gearMat = slot => { const m = new BABYLON.StandardMaterial('gear_' + slot, scene); m.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6); m.specularPower = 64; return m; };
+  const GM = { weapon: gearMat('weapon'), helmet: gearMat('helmet'), armor: gearMat('armor'), shield: gearMat('shield') };
+  const tierColor = (tool, tier) => tier === 3 ? (tool === 'pick' ? '#5ff2ff' : '#ffc533') : tier === 2 ? '#cfd5e2' : (tool === 'shovel' || tool === 'bucket' ? '#9e7347' : '#80808a');
+
+  let H = null, hero = null, body, legL, legR, armL, armR, toolNodes = {}, weaponNodes = {}, helmNode, armorNode, pads, shieldNode, nameTag = null;
+  const heroLook = () => {
+    const h = S.hero || { gender: 'm', cls: 'fighter' }, c = CLASSES[h.cls] || CLASSES.fighter, f = h.gender === 'f';
+    const look = { skin: '#f2c39b', shirt: c.shirt, pants: c.pants, boots: '#5b3a22', hair: f ? '#8a4a1f' : '#6b3e1f', hairStyle: f ? 'long' : 'short', lashes: f, lips: f ? '#c4505a' : '#8a3b3b' };
+    if (h.cls === 'mage') Object.assign(look, { robe: '#4a3290', hat: 'wizard', hatColor: '#4a3290', belt: '#ffd23f', sleeve: '#5b3fa8' });
+    if (h.cls === 'spy') Object.assign(look, { hat: f ? null : 'hood', hatColor: '#1f2a2e', scarf: '#7a1f2a', cape: '#1f2a2e', belt: '#3a2a20' });
+    if (h.cls === 'fighter') Object.assign(look, { cape: '#8a1f1f', belt: '#5a3a1e' });
+    if (h.cls === 'spy' && f) Object.assign(look, { hat: 'hood', hatColor: '#1f2a2e' });
+    return look;
   };
-  TOOL_ORDER.forEach(t => {
-    const node = TN('tool_' + t, armR); node.position.set(0, -0.86, 0.05); node.rotation.x = 0.35;
-    const hm = headMats[t] = new BABYLON.StandardMaterial('head_' + t, scene);
-    hm.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5); hm.specularPower = 48;
-    if (t === 'bucket') {
-      node.rotation.x = 0;
-      group('bucket', [part('cyl', { height: 0.42, diameterTop: 0.48, diameterBottom: 0.36, tessellation: 12 }, null, 0, -0.28, 0), part('tor', { diameter: 0.48, thickness: 0.04, tessellation: 12 }, null, 0, -0.07, 0)], node, hm);
-    } else {
-      const h = part('cyl', { height: 1.1, diameter: 0.08, tessellation: 6 }, null, 0, 0, 0.5, null, [Math.PI / 2, 0, 0]); h.parent = node; h.material = handleMat; h.isPickable = false;
-      const head = t === 'axe' ? part('box', { width: 0.08, height: 0.42, depth: 0.3 }, null, 0, -0.12, 0.95)
-        : t === 'pick' ? part('box', { width: 0.08, height: 0.9, depth: 0.1 }, null, 0, 0, 1.0)
-          : part('box', { width: 0.32, height: 0.05, depth: 0.42 }, null, 0, 0, 1.2);
-      head.parent = node; head.material = hm; head.isPickable = false;
-    }
-    toolNodes[t] = node;
-  });
-  const refreshTools = () => {
+  function buildHero() {
+    const old = hero ? { x: hero.position.x, z: hero.position.z, ry: hero.rotation.y } : null;
+    if (H) { H.root.dispose(false, false); H.shadow.dispose(); if (H.bootM) H.bootM.dispose(); }
+    H = makeCharacter('hero', heroLook(), [
+      part('caps', { radius: 0.32, height: 0.85, tessellation: 12 }, '#8a5a2b', 0, 1.68, -0.42, [1, 1, 0.55]),
+      part('caps', { radius: 0.13, height: 0.8, tessellation: 10 }, '#c94f3d', 0, 2.15, -0.44, null, [0, 0, Math.PI / 2])
+    ], true);
+    hero = H.root; body = H.body; legL = H.legL; legR = H.legR; armL = H.armL; armR = H.armR;
+    if (old) { hero.position.x = old.x; hero.position.z = old.z; hero.rotation.y = old.ry; }
+    else hero.position.set(-2.5, 0, -6);
+    // Werkzeuge
+    toolNodes = {};
     TOOL_ORDER.forEach(t => {
-      toolNodes[t].setEnabled(t === S.eq);
-      const c = BABYLON.Color3.FromHexString(tierColor(t, S.tools[t]));
+      const node = TN('tool_' + t, armR); node.position.set(0, -0.86, 0.05); node.rotation.x = 0.35;
+      if (t === 'bucket') {
+        node.rotation.x = 0;
+        group('bucket', [part('cyl', { height: 0.42, diameterTop: 0.48, diameterBottom: 0.36, tessellation: 12 }, null, 0, -0.28, 0), part('tor', { diameter: 0.48, thickness: 0.04, tessellation: 12 }, null, 0, -0.07, 0)], node, headMats[t]);
+      } else {
+        const h = part('cyl', { height: 1.1, diameter: 0.08, tessellation: 6 }, null, 0, 0, 0.5, null, [Math.PI / 2, 0, 0]); h.parent = node; h.material = handleMat; h.isPickable = false;
+        const head = t === 'axe' ? part('box', { width: 0.08, height: 0.42, depth: 0.3 }, null, 0, -0.12, 0.95)
+          : t === 'pick' ? part('box', { width: 0.08, height: 0.9, depth: 0.1 }, null, 0, 0, 1.0)
+            : part('box', { width: 0.32, height: 0.05, depth: 0.42 }, null, 0, 0, 1.2);
+        head.parent = node; head.material = headMats[t]; head.isPickable = false;
+      }
+      toolNodes[t] = node;
+    });
+    // Waffen: Schwert (Hüfte), Stab (Rücken), Dolch (Hüfte)
+    weaponNodes.sword = TN('sword', body); weaponNodes.sword.position.set(-0.47, 1.25, 0.05); weaponNodes.sword.rotation.set(Math.PI + 0.45, 0, 0.12);
+    group('swordBlade', [part('sph', { diameter: 0.11, segments: 6 }, null, 0, -0.02, 0), part('box', { width: 0.34, height: 0.06, depth: 0.09 }, null, 0, 0.3, 0), part('box', { width: 0.1, height: 0.95, depth: 0.03 }, null, 0, 0.8, 0)], weaponNodes.sword, GM.weapon);
+    { const g = part('cyl', { diameter: 0.07, height: 0.28, tessellation: 6 }, null, 0, 0.14, 0); g.parent = weaponNodes.sword; g.material = smat('#4a2e18'); }
+    weaponNodes.staff = TN('staff', body); weaponNodes.staff.position.set(0.15, 1.7, -0.62); weaponNodes.staff.rotation.set(0, 0, 0.5);
+    { const s = part('cyl', { diameter: 0.08, height: 2.2, tessellation: 6 }, null, 0, 0, 0); s.parent = weaponNodes.staff; s.material = smat('#6b4526'); }
+    group('staffOrb', [part('sph', { diameter: 0.3, segments: 10 }, null, 0, 1.2, 0), part('tor', { diameter: 0.34, thickness: 0.05, tessellation: 12 }, null, 0, 1.05, 0)], weaponNodes.staff, GM.weapon);
+    weaponNodes.dagger = TN('dagger', body); weaponNodes.dagger.position.set(0.45, 1.2, 0.12); weaponNodes.dagger.rotation.set(Math.PI + 0.3, 0, -0.15);
+    group('daggerBlade', [part('box', { width: 0.22, height: 0.05, depth: 0.07 }, null, 0, 0.18, 0), part('box', { width: 0.07, height: 0.5, depth: 0.025 }, null, 0, 0.45, 0)], weaponNodes.dagger, GM.weapon);
+    { const g = part('cyl', { diameter: 0.06, height: 0.18, tessellation: 6 }, null, 0, 0.07, 0); g.parent = weaponNodes.dagger; g.material = smat('#2a1a10'); }
+    // Rüstung
+    helmNode = TN('helm', body); helmNode.position.set(0, H.hy + 0.02, -0.02);
+    group('helmM', [part('sph', { diameter: 0.86, segments: 14, slice: 0.55, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, null, 0, 0, 0), part('tor', { diameter: 0.84, thickness: 0.06, tessellation: 20 }, null, 0, -0.02, 0)], helmNode, GM.helmet);
+    armorNode = TN('armorN', body);
+    group('chest', [part('caps', { radius: 0.44, height: 1.0, tessellation: 16 }, null, 0, 1.7, 0, [1, 1, 0.76])], armorNode, GM.armor);
+    pads = group('pads', [-1, 1].map(sx => part('sph', { diameter: 0.46, segments: 10 }, null, 0.52 * sx, 2.08, 0, [1, 0.7, 1])), armorNode, GM.armor);
+    shieldNode = TN('shieldN', armL); shieldNode.position.set(-0.18, -0.5, 0.05); shieldNode.rotation.z = Math.PI / 2;
+    group('shieldM', [part('cyl', { diameter: 0.8, height: 0.07, tessellation: 18 }, null, 0, 0, 0)], shieldNode, GM.shield);
+    { const b = part('sph', { diameter: 0.22, segments: 8 }, null, 0, 0.05, 0); b.parent = shieldNode; b.material = smat('#ffd23f', 0.5); }
+    // Namensschild
+    makeNameTag();
+    refreshTools(); applyGear();
+  }
+  function makeNameTag() {
+    if (nameTag) { nameTag.material.diffuseTexture.dispose(); nameTag.material.dispose(); nameTag.dispose(); nameTag = null; }
+    if (!S.hero) return;
+    const c = CLASSES[S.hero.cls];
+    const tex = new BABYLON.DynamicTexture('tagT', { width: 512, height: 96 }, scene, true);
+    const ctx = tex.getContext(); ctx.clearRect(0, 0, 512, 96);
+    ctx.font = 'bold 50px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+    const txt = c.e + ' ' + S.hero.name, w = Math.min(500, ctx.measureText(txt).width + 40);
+    ctx.fillStyle = 'rgba(15,20,45,0.7)';
+    const x0 = 256 - w / 2; ctx.beginPath(); ctx.moveTo(x0 + 30, 10); ctx.arcTo(x0 + w, 10, x0 + w, 86, 30); ctx.arcTo(x0 + w, 86, x0, 86, 30); ctx.arcTo(x0, 86, x0, 10, 30); ctx.arcTo(x0, 10, x0 + w, 10, 30); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 256, 50);
+    tex.update(); tex.hasAlpha = true;
+    const m = new BABYLON.StandardMaterial('tagM', scene);
+    m.diffuseTexture = tex; m.opacityTexture = tex; m.emissiveColor = new BABYLON.Color3(1, 1, 1); m.disableLighting = true; m.backFaceCulling = false;
+    nameTag = MB.CreatePlane('tag', { width: 2.2, height: 0.41 }, scene);
+    nameTag.material = m; nameTag.parent = hero; nameTag.position.y = 3.45; nameTag.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; nameTag.isPickable = false;
+  }
+  function refreshTools() {
+    TOOL_ORDER.forEach(t => {
+      if (toolNodes[t]) toolNodes[t].setEnabled(t === S.eq);
+      const c = C3(tierColor(t, S.tools[t]));
       headMats[t].diffuseColor = c;
       headMats[t].emissiveColor = S.tools[t] === 3 ? c.scale(0.3) : BABYLON.Color3.Black();
     });
     $('toolIcon').textContent = TOOLS[S.eq];
     $('toolDot').style.background = TIER_DOT[S.tools[S.eq] - 1];
-    const b = $('toolBadge'); b.setAttribute('aria-label', TOOL_NAMES[S.eq][S.tools[S.eq] - 1]);
-  };
+    $('toolBadge').setAttribute('aria-label', TOOL_NAMES[S.eq][S.tools[S.eq] - 1]);
+  }
   const setTool = t => {
     if (S.eq === t) return;
     S.eq = t; refreshTools();
     const b = $('toolBadge'); b.classList.remove('swap'); void b.offsetWidth; b.classList.add('swap');
   };
-
-  // ---------- Waffen & Rüstungen an der Figur ----------
-  const gearMat = slot => { const m = new BABYLON.StandardMaterial('gear_' + slot, scene); m.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6); m.specularPower = 64; return m; };
-  const GM = { weapon: gearMat('weapon'), helmet: gearMat('helmet'), armor: gearMat('armor'), shield: gearMat('shield') };
-  const swordNode = TN('sword', body); swordNode.position.set(-0.47, 1.25, 0.05); swordNode.rotation.set(Math.PI + 0.45, 0, 0.12);
-  group('swordBlade', [part('sph', { diameter: 0.11, segments: 6 }, null, 0, -0.02, 0), part('box', { width: 0.34, height: 0.06, depth: 0.09 }, null, 0, 0.3, 0), part('box', { width: 0.1, height: 0.95, depth: 0.03 }, null, 0, 0.8, 0)], swordNode, GM.weapon);
-  { const g = part('cyl', { diameter: 0.07, height: 0.28, tessellation: 6 }, null, 0, 0.14, 0); g.parent = swordNode; g.material = smat('#4a2e18'); }
-  const helmNode = TN('helm', body); helmNode.position.set(0, H.hy + 0.02, -0.02);
-  group('helmM', [part('sph', { diameter: 0.86, segments: 14, slice: 0.55, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, null, 0, 0, 0), part('tor', { diameter: 0.84, thickness: 0.06, tessellation: 20 }, null, 0, -0.02, 0)], helmNode, GM.helmet);
-  const armorNode = TN('armorN', body);
-  group('chest', [part('caps', { radius: 0.44, height: 1.0, tessellation: 16 }, null, 0, 1.7, 0, [1, 1, 0.76])], armorNode, GM.armor);
-  const pads = group('pads', [-1, 1].map(sx => part('sph', { diameter: 0.46, segments: 10 }, null, 0.52 * sx, 2.08, 0, [1, 0.7, 1])), armorNode, GM.armor);
-  const shieldNode = TN('shieldN', armL); shieldNode.position.set(-0.18, -0.5, 0.05); shieldNode.rotation.z = Math.PI / 2;
-  group('shieldM', [part('cyl', { diameter: 0.8, height: 0.07, tessellation: 18 }, null, 0, 0, 0)], shieldNode, GM.shield);
-  { const b = part('sph', { diameter: 0.22, segments: 8 }, null, 0, 0.05, 0); b.parent = shieldNode; b.material = smat('#ffd23f', 0.5); }
-
-  const applyGear = () => {
-    const bySlot = { weapon: swordNode, helmet: helmNode, armor: armorNode, shield: shieldNode };
+  function applyGear() {
+    const w = S.gear.weapon && GEAR[S.gear.weapon];
+    Object.keys(weaponNodes).forEach(k => weaponNodes[k].setEnabled(!!w && w.type === k));
+    helmNode.setEnabled(!!S.gear.helmet); armorNode.setEnabled(!!S.gear.armor); shieldNode.setEnabled(!!S.gear.shield);
     SLOTS.forEach(([slot]) => {
       const g = S.gear[slot] && GEAR[S.gear[slot]];
-      bySlot[slot].setEnabled(!!g);
-      if (g) {
-        GM[slot].diffuseColor = BABYLON.Color3.FromHexString(g.color);
-        GM[slot].emissiveColor = g.glow ? BABYLON.Color3.FromHexString(g.color).scale(0.35) : BABYLON.Color3.Black();
-      }
+      if (g) { GM[slot].diffuseColor = C3(g.color); GM[slot].emissiveColor = g.glow ? C3(g.color).scale(0.4) : BABYLON.Color3.Black(); }
     });
     const a = S.gear.armor && GEAR[S.gear.armor];
     pads.setEnabled(!!(a && a.pads));
     if (H.hair) H.hair.setEnabled(!S.gear.helmet);
-    H.bootM.diffuseColor = BABYLON.Color3.FromHexString(S.perks.boots ? '#b8322a' : '#5b3a22');
-  };
-
-  // =====================================================================
-  // Händler-Stände (jeder Stand = 1 Teil + Schild + Figur)
-  // =====================================================================
-  const npcs = [];
-  const makeSign = s => {
-    const tex = new BABYLON.DynamicTexture('signT' + s.id, { width: 512, height: 128 }, scene, true);
-    const ctx = tex.getContext();
-    ctx.fillStyle = '#5a3a1e'; ctx.fillRect(0, 0, 512, 128);
-    ctx.fillStyle = '#f7ecd2'; ctx.fillRect(8, 8, 496, 112);
-    ctx.fillStyle = '#3a2a1a'; ctx.font = 'bold 58px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(s.sign, 256, 68);
-    tex.update();
-    const m = new BABYLON.StandardMaterial('signM' + s.id, scene);
-    m.diffuseTexture = tex; m.emissiveColor = new BABYLON.Color3(0.45, 0.45, 0.45); m.specularColor = BABYLON.Color3.Black(); m.backFaceCulling = false;
-    const p = MB.CreatePlane('sign' + s.id, { width: 2.6, height: 0.65 }, scene);
-    p.material = m; p.isPickable = false;
-    return p;
-  };
-  SHOPS.forEach(s => {
-    const node = TN('stall' + s.id);
-    node.position.set(s.x, heightAt(s.x, s.z), s.z);
-    const ry = Math.atan2(0 - s.x, -1 - s.z);
-    node.rotation.y = ry;
-    const W = '#9a6a3c', D = '#6b4526', P = [];
-    P.push(part('box', { width: 3, height: 1.0, depth: 0.75 }, W, 0, 0.5, 1.15));
-    P.push(part('box', { width: 3.2, height: 0.09, depth: 0.9 }, D, 0, 1.05, 1.15));
-    [[-1.5, -0.8], [1.5, -0.8], [-1.5, 1.55], [1.5, 1.55]].forEach(([x, z]) => P.push(part('cyl', { diameter: 0.14, height: 2.9, tessellation: 6 }, D, x, 1.45, z)));
-    for (let i = 0; i < 7; i++) P.push(part('box', { width: 0.48, height: 0.06, depth: 3.0 }, s.awning[i % 2], -1.44 + i * 0.48, 2.95, 0.4, null, [0.22, 0, 0]));
-    P.push(part('box', { width: 3.36, height: 0.25, depth: 0.04 }, s.awning[0], 0, 2.55, 1.9, null, [0.22, 0, 0]));
-    if (s.id === 'general') {
-      P.push(part('cyl', { diameter: 0.7, height: 0.9, tessellation: 12 }, W, -2.1, 0.45, 1.3));
-      P.push(part('box', { size: 0.6 }, D, 2.1, 0.3, 1.3));
-      for (let i = 0; i < 5; i++) P.push(part('sph', { diameter: 0.18, segments: 6 }, i % 2 ? '#d63a3a' : '#7cc242', -0.9 + i * 0.13, 1.18, 1.1 + (i % 2) * 0.12));
-      P.push(part('cyl', { diameter: 0.16, height: 0.28, tessellation: 8 }, '#e94fb0', 0.6, 1.24, 1.1));
-      P.push(part('cyl', { diameter: 0.16, height: 0.28, tessellation: 8 }, '#4fb0e9', 0.85, 1.24, 1.2));
-    } else if (s.id === 'weapons') {
-      for (let i = 0; i < 3; i++) {
-        P.push(part('box', { width: 0.09, height: 0.9, depth: 0.03 }, ['#cd7f32', '#d5dbe5', '#ffc533'][i], -0.7 + i * 0.7, 1.55, 1.05, null, [0, 0, 0.1 * (i - 1)]));
-        P.push(part('box', { width: 0.3, height: 0.05, depth: 0.08 }, '#4a2e18', -0.7 + i * 0.7, 1.12, 1.05));
-      }
-      P.push(part('cyl', { diameterTop: 0.5, diameterBottom: 0.35, height: 0.5, tessellation: 6 }, '#3a3a44', 2.1, 0.25, 1.4));
-    } else {
-      P.push(part('sph', { diameter: 0.5, segments: 10, slice: 0.55 }, '#c9ced8', -0.7, 1.1, 1.1));
-      P.push(part('cyl', { diameter: 0.75, height: 0.07, tessellation: 16 }, '#ffc533', 0.6, 1.5, 1.15, null, [Math.PI / 2 - 0.2, 0, 0]));
-      P.push(part('caps', { radius: 0.35, height: 1.1, tessellation: 12 }, '#9aa3b0', 2.2, 1.0, 1.2, [1, 1, 0.7]));
-    }
-    const stall = group('stallM' + s.id, P, node);
-    const sign = makeSign(s); sign.parent = node; sign.position.set(0, 3.75, 0.6);
-    sign.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y;
-    addBlob(s.x, heightAt(s.x, s.z), s.z, 4.6);
-
-    const c = makeCharacter('npc_' + s.id, s.look);
-    c.root.parent = node;
-    c.shadow.parent = node; c.shadow.position.set(0, 0.06, 0);
-    npcs.push({ s, c, node, ry, wave: 0 });
-
-    const toWorld = (lx, lz) => ({ x: s.x + lx * Math.cos(ry) + lz * Math.sin(ry), z: s.z - lx * Math.sin(ry) + lz * Math.cos(ry) });
-    [[0, 0, 0.6], [-1.1, 1.15, 0.55], [0, 1.15, 0.55], [1.1, 1.15, 0.55], [-1.5, -0.8, 0.3], [1.5, -0.8, 0.3], [-2.1, 1.3, 0.45], [2.1, 1.3, 0.45]]
-      .forEach(([lx, lz, r]) => { const w = toWorld(lx, lz); solids.push({ x: w.x, z: w.z, r }); });
-    s.front = toWorld(0, 2.2);
-    stall.computeWorldMatrix(true); stall.freezeWorldMatrix();
-  });
-
-  // Statische Teile einfrieren = weniger Rechenarbeit pro Bild
-  [ground, plaza, decorMesh, sea].forEach(m => { m.isPickable = false; m.freezeWorldMatrix(); });
+    H.bootM.diffuseColor = C3(S.perks.boots ? '#b8322a' : '#5b3a22');
+  }
 
   // =====================================================================
   // Kamera
@@ -640,18 +840,16 @@
   const tmpV = new BABYLON.Vector3();
 
   // =====================================================================
-  // Effekte
+  // Effekte & Meldungen
   // =====================================================================
   const particles = [];
-  const ptSrc = MB.CreateBox('pt', { size: 0.16 }, scene);
-  ptSrc.material = vcMat; VC(ptSrc, '#ffffff'); ptSrc.isVisible = false;
-  const ptMats = {};
   for (let i = 0; i < 40; i++) {
     const m = MB.CreateBox('pt' + i, { size: 0.16 }, scene);
     m.isVisible = false; m.isPickable = false;
     particles.push({ m, v: new BABYLON.Vector3(), life: 0 });
   }
   let pIdx = 0;
+  const ptMats = {};
   const burst = (x, y, z, hex, count) => {
     const m = ptMats[hex] || (ptMats[hex] = smat(hex, 0.1, 0.25));
     for (let i = 0; i < count; i++) {
@@ -662,17 +860,17 @@
     }
   };
   const toScreen = v => BABYLON.Vector3.Project(v, BABYLON.Matrix.Identity(), scene.getTransformMatrix(), cam.viewport.toGlobal(canvas.clientWidth, canvas.clientHeight));
-  const popText = (txt, worldPos) => {
+  const popText = (html, worldPos) => {
     const p = toScreen(worldPos);
     const d = document.createElement('div');
-    d.className = 'pop'; d.textContent = txt; d.style.left = p.x + 'px'; d.style.top = p.y + 'px';
+    d.className = 'pop'; d.innerHTML = html; d.style.left = p.x + 'px'; d.style.top = p.y + 'px';
     document.body.appendChild(d);
     setTimeout(() => d.remove(), 1200);
   };
   let toastTimer = 0;
-  const toast = (msg, gold) => {
+  const toast = (html, gold) => {
     const t = $('toast');
-    t.textContent = msg; t.className = 'show' + (gold ? ' gold' : '');
+    t.innerHTML = html; t.className = 'show' + (gold ? ' gold' : '');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.className = gold ? 'gold' : ''; }, gold ? 3000 : 2200);
   };
@@ -695,16 +893,17 @@
   };
 
   // =====================================================================
-  // XP, Level, Leben, Geld & Erfolge
+  // HUD, XP, Erfolge
   // =====================================================================
   const updateHud = () => {
     const d = derived();
     S.hp = Math.min(S.hp, d.hpMax);
+    $('title').textContent = S.hero ? CLASSES[S.hero.cls].e + ' ' + S.hero.name : 'CIMACU';
     $('lvl').textContent = 'Lv ' + S.level;
     $('xpfill').style.width = Math.min(100, (S.xp / xpNeed(S.level)) * 100) + '%';
     $('hpfill').style.width = (S.hp / d.hpMax * 100) + '%';
     $('hptxt').textContent = '❤ ' + Math.round(S.hp) + '/' + d.hpMax;
-    $('money').textContent = COIN + ' ' + S.money;
+    $('moneyNum').textContent = S.money;
     $('bag').classList.toggle('dot', S.points > 0);
   };
   const checkAch = () => {
@@ -721,12 +920,9 @@
     S.xp += amount * (1 + derived().xpBonus);
     while (S.xp >= xpNeed(S.level)) {
       S.xp -= xpNeed(S.level);
-      S.level++;
-      S.points += POINTS_PER_LEVEL;
-      S.hp = derived().hpMax;
+      S.level++; S.points += POINTS_PER_LEVEL; S.hp = derived().hpMax;
       $('lvNum').textContent = S.level;
-      const lu = $('levelup');
-      lu.classList.remove('show'); void lu.offsetWidth; lu.classList.add('show');
+      const lu = $('levelup'); lu.classList.remove('show'); void lu.offsetWidth; lu.classList.add('show');
       confetti(); vibrate([60, 40, 120]);
       burst(hero.position.x, hero.position.y + 2, hero.position.z, '#ffd23f', 20);
     }
@@ -739,11 +935,13 @@
   };
 
   // =====================================================================
-  // Ziel finden & Abbauen (Werkzeug wechselt automatisch)
+  // Ziel finden & Abbauen
   // =====================================================================
   let facing = 0;
   const findTarget = () => {
     const hx = hero.position.x, hz = hero.position.z;
+    if (portal && Math.hypot(portal.front.x - hx, portal.front.z - hz) < 2.6) return { kind: 'portal' };
+    if (portal && Math.hypot(portal.back.x - hx, portal.back.z - hz) < 2.0) return { kind: 'portal' };
     for (const s of SHOPS) if (Math.hypot(s.front.x - hx, s.front.z - hz) < 2.4) return { kind: 'shop', shop: s };
     const fx = Math.sin(facing), fz = Math.cos(facing);
     let best = null, bestScore = 1e9;
@@ -766,33 +964,27 @@
 
   let swingT = -1, swingTarget = null, hitDone = false, actionHeld = false;
   const swingDur = () => 0.5 / derived().swing;
-
   const startSwing = () => {
-    if (swingT >= 0) return;
+    if (swingT >= 0 || !S.hero) return;
     const tgt = findTarget();
-    if (!tgt) { toast('Hier gibt es nichts abzubauen. Geh in den Wald oder zu einem Händler-Stand.'); actionHeld = false; return; }
+    if (!tgt) { toast('Hier gibt es nichts abzubauen. Geh in die Natur, zu einem Händler oder zum Reisetor.'); actionHeld = false; return; }
     if (tgt.kind === 'shop') { actionHeld = false; openShop(tgt.shop); return; }
+    if (tgt.kind === 'portal') { actionHeld = false; openTravel(); return; }
     const k = KINDS[tgt.kind];
     setTool(k.tool);
-    if (k.tier && S.tools[k.tool] < k.tier) {
-      toast('💪 Zu hart! Du brauchst eine ' + TOOL_NAMES[k.tool][k.tier - 1] + ' (🎒 → Bauen)');
-      actionHeld = false; return;
-    }
+    if (k.tier && S.tools[k.tool] < k.tier) { toast('💪 Zu hart! Du brauchst eine ' + TOOL_NAMES[k.tool][k.tier - 1] + ' (🎒 → Bauen)'); actionHeld = false; return; }
     if (tgt.node) facing = Math.atan2(tgt.node.x - hero.position.x, tgt.node.z - hero.position.z);
     hero.rotation.y = facing;
     swingT = 0; swingTarget = tgt; hitDone = false;
   };
-
   const hit = tgt => {
-    const k = KINDS[tgt.kind];
-    const tier = S.tools[k.tool];
+    const k = KINDS[tgt.kind], tier = S.tools[k.tool];
     if (tgt.node) {
       const n = tgt.node;
       if (!n.alive) return;
       n.hp -= tier * derived().power; n.shake = 0.3;
       const y = heightAt(n.x, n.z) + 1;
-      burst(n.x, y, n.z, k.color, 5);
-      vibrate(15);
+      burst(n.x, y, n.z, k.color, 5); vibrate(15);
       if (n.hp <= 0.001) {
         n.alive = false; n.dying = 1; n.hidden = false; n.respawn = performance.now() + 90000;
         S.stats['k_' + n.kind] = (S.stats['k_' + n.kind] || 0) + 1;
@@ -813,21 +1005,19 @@
       } else { px = hero.position.x + Math.sin(facing) * 1.2; pz = hero.position.z + Math.cos(facing) * 1.2; }
       burst(px, heightAt(px, pz) + 0.3, pz, k.color, 8);
       give(item, tier, new BABYLON.Vector3(px, heightAt(px, pz) + 1.5, pz));
-      addXp(k.xp * tier);
-      vibrate(10);
+      addXp(k.xp * tier); vibrate(10);
     }
     checkAch(); save();
   };
 
   // =====================================================================
-  // Aktions-Knopf & Werkzeug-Bild
+  // Aktions-Knopf
   // =====================================================================
   const act = $('act');
   act.addEventListener('pointerdown', e => { e.preventDefault(); actionHeld = true; startSwing(); $('hint').style.opacity = '0'; });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => act.addEventListener(ev, () => { actionHeld = false; }));
   act.addEventListener('contextmenu', e => e.preventDefault());
   $('toolBadge').addEventListener('click', () => { tab = 'tools'; $('inv').hidden = false; renderInv(); });
-
   let lastBtn = '';
   const ring = act.querySelector('circle');
   const updateActButton = () => {
@@ -835,25 +1025,24 @@
     let key, icon, label;
     if (!tgt) { key = 'none'; icon = '✋'; label = 'Nichts hier'; }
     else if (tgt.kind === 'shop') { key = 'shop' + tgt.shop.id; icon = '🛒'; label = 'Handeln'; }
+    else if (tgt.kind === 'portal') { key = 'portal'; icon = '🧭'; label = 'Reisen'; }
     else {
       const k = KINDS[tgt.kind];
       if (swingT < 0) setTool(k.tool);
       const locked = k.tier && S.tools[k.tool] < k.tier;
-      key = tgt.kind + locked;
-      icon = locked ? '🔒' : TOOLS[k.tool];
-      label = locked ? 'Zu hart' : k.verb;
+      key = tgt.kind + locked; icon = locked ? '🔒' : TOOLS[k.tool]; label = locked ? 'Zu hart' : k.verb;
     }
     if (key !== lastBtn) {
       lastBtn = key;
       $('actIcon').textContent = icon; $('actLabel').textContent = label;
       act.classList.toggle('off', !tgt);
-      act.classList.toggle('shop', !!tgt && tgt.kind === 'shop');
+      act.classList.toggle('shop', !!tgt && (tgt.kind === 'shop' || tgt.kind === 'portal'));
     }
     ring.style.strokeDashoffset = tgt && tgt.node ? 289 * Math.max(0, tgt.node.hp / KINDS[tgt.kind].hp) : 289;
   };
 
   // =====================================================================
-  // Händler-Fenster
+  // Händler
   // =====================================================================
   let curShop = null, shopTab = 'buy';
   const fmtStat = g => g.atk ? `⚔️ Angriff +${g.atk}` : `🛡️ Schutz +${g.def}`;
@@ -862,16 +1051,17 @@
     const npc = npcs.find(n => n.s === s); if (npc) npc.wave = 1.5;
     renderShop();
   };
+  const shopGoods = s => s.goods === 'weapons' ? Object.keys(GEAR).filter(k => GEAR[k].cls === cls()) : s.goods;
   const renderShop = () => {
     const s = curShop; if (!s) return;
     $('shopTitle').textContent = s.sign.split(' ')[0] + ' ' + s.name + ' · ' + s.title;
-    $('shopGreet').textContent = s.greet;
-    $('shopMoney').textContent = 'Dein Geld: ' + COIN + ' ' + S.money;
+    $('shopGreet').textContent = s.id === 'weapons' ? '„Für dich als ' + CLASSES[cls()].name + ' hab ich genau das Richtige!“' : s.greet;
+    $('shopMoney').innerHTML = 'Dein Geld: ' + CIM + ' ' + S.money + ' Cim';
     $('shopTabs').innerHTML = s.buys ? `<button data-stab="buy" class="${shopTab === 'buy' ? 'on' : ''}">🛒 Kaufen</button><button data-stab="sell" class="${shopTab === 'sell' ? 'on' : ''}">💰 Verkaufen</button>` : '';
     $('shopTabs').style.display = s.buys ? '' : 'none';
     let h = '';
     if (shopTab === 'buy') {
-      h = s.goods.map(id => {
+      h = shopGoods(s).map(id => {
         const g = GEAR[id], o = GOODS[id];
         if (g) {
           const cur = S.gear[g.slot] && GEAR[S.gear[g.slot]];
@@ -880,18 +1070,18 @@
           let btn;
           if (S.gear[g.slot] === id) btn = '<span class="tag">✔ Angelegt</span>';
           else if (S.owned[id]) btn = `<button class="alt" data-equip-gear="${id}">Anlegen</button>`;
-          else btn = `<button data-buy="${id}" ${S.money >= g.price ? '' : 'disabled'}>${COIN} ${g.price}</button>`;
+          else btn = `<button data-buy="${id}" ${S.money >= g.price ? '' : 'disabled'}>${CIM} ${g.price}</button>`;
           return `<div class="row"><div class="e">${g.e}<i style="background:${g.color}"></i></div><div class="t"><b>${g.name}</b><small>${fmtStat(g)}${cmp}</small></div>${btn}</div>`;
         }
-        const btn = o.perk && S.perks[id] ? '<span class="tag">✔ Gekauft</span>' : `<button data-buy="${id}" ${S.money >= o.price ? '' : 'disabled'}>${COIN} ${o.price}</button>`;
+        const btn = o.perk && S.perks[id] ? '<span class="tag">✔ Gekauft</span>' : `<button data-buy="${id}" ${S.money >= o.price ? '' : 'disabled'}>${CIM} ${o.price}</button>`;
         const extra = id === 'potion' ? ` · Du hast ${S.potions || 0}` : '';
         return `<div class="row"><div class="e">${o.e}</div><div class="t"><b>${o.name}</b><small>${o.desc}${extra}</small></div>${btn}</div>`;
       }).join('');
     } else {
       const have = Object.keys(ITEMS).filter(i => S.inv[i] > 0);
       const total = have.reduce((a, i) => a + S.inv[i] * sellPrice(i), 0);
-      h = `<button class="wide" data-sellall ${total ? '' : 'disabled'}>Alle Rohstoffe verkaufen · ${COIN} ${total}</button>`;
-      h += have.length ? have.map(i => `<div class="row"><div class="e">${ITEMS[i][1]}</div><div class="t"><b>${ITEMS[i][0]} × ${S.inv[i]}</b><small>${COIN} ${sellPrice(i)} pro Stück</small></div><div class="btns"><button class="alt" data-sell="${i}:1">1</button><button data-sell="${i}:all">Alle</button></div></div>`).join('')
+      h = `<button class="wide" data-sellall ${total ? '' : 'disabled'}>Alle Rohstoffe verkaufen · ${CIM} ${total}</button>`;
+      h += have.length ? have.map(i => `<div class="row"><div class="e">${ITEMS[i][1]}</div><div class="t"><b>${ITEMS[i][0]} × ${S.inv[i]}</b><small>${CIM} ${sellPrice(i)} pro Stück</small></div><div class="btns"><button class="alt" data-sell="${i}:1">1</button><button data-sell="${i}:all">Alle</button></div></div>`).join('')
         : '<div class="empty">Dein Rucksack ist leer. Sammle Rohstoffe und komm wieder!</div>';
     }
     $('shopBody').innerHTML = h;
@@ -921,16 +1111,49 @@
     } else if (b.dataset.sell) {
       const [item, n] = b.dataset.sell.split(':');
       const v = sell(item, n === 'all' ? Infinity : 1);
-      if (v) { toast('💰 +' + v + ' Taler'); vibrate(15); }
+      if (v) { toast('💰 +' + v + ' ' + CIM + ' Cim'); vibrate(15); }
     } else if (b.dataset.sellall !== undefined) {
       let v = 0; Object.keys(ITEMS).forEach(i => { v += sell(i, Infinity); });
-      if (v) { toast('💰 Alles verkauft: +' + v + ' Taler', true); vibrate([20, 30, 60]); }
+      if (v) { toast('💰 Alles verkauft: +' + v + ' ' + CIM + ' Cim', true); vibrate([20, 30, 60]); }
     }
     bump('money'); updateHud(); checkAch(); save(); renderShop();
   });
 
   // =====================================================================
-  // Rucksack (mit Held: Statuspunkte & Ausrüstung)
+  // Reisen
+  // =====================================================================
+  const openTravel = () => { $('travel').hidden = false; renderTravel(); };
+  const renderTravel = () => {
+    $('travelMoney').innerHTML = 'Dein Geld: ' + CIM + ' ' + S.money + ' Cim';
+    $('travelBody').innerHTML = LAND_ORDER.map(id => {
+      const l = LANDS[id], here = id === S.land;
+      const btn = here ? '<span class="here">📍 Du bist hier</span>' : `<button data-go="${id}" ${S.money >= TRAVEL_COST ? '' : 'disabled'}>${CIM} ${TRAVEL_COST}</button>`;
+      return `<div class="land" style="background:${l.card}"><div class="e">${l.e}</div><div class="t"><b>${l.name}${S.visited && S.visited[id] ? '' : ' ✨ neu'}</b><small>${l.desc}</small><small>Besonders: ${l.special}</small></div>${btn}</div>`;
+    }).join('') + (S.money < TRAVEL_COST ? `<div class="empty">Dir fehlen noch ${TRAVEL_COST - S.money} Cim. Verkaufe Rohstoffe bei der Gemischtwaren-Händlerin!</div>` : '');
+  };
+  $('travelBody').addEventListener('click', e => {
+    const b = e.target.closest('[data-go]'); if (!b || b.disabled) return;
+    const id = b.dataset.go;
+    if (S.money < TRAVEL_COST || id === S.land) return;
+    S.money -= TRAVEL_COST;
+    $('travel').hidden = true;
+    const f = $('fade'); $('fadeTxt').textContent = '🧭 Reise nach ' + LANDS[id].e + ' ' + LANDS[id].name + ' …';
+    f.classList.add('on');
+    vibrate([30, 60, 30]);
+    setTimeout(() => {
+      S.land = id; S.visited = S.visited || {}; S.visited[id] = (S.visited[id] || 0) + 1;
+      buildLand(id);
+      facing = Math.atan2(-portal.front.x, -portal.front.z); hero.rotation.y = facing;
+      hero.position.set(portal.front.x + Math.sin(facing) * 2.5, 0, portal.front.z + Math.cos(facing) * 2.5);
+      cam.alpha = Math.atan2(-Math.cos(facing), -Math.sin(facing)) + 1.1;
+      camTarget.set(hero.position.x, 2, hero.position.z);
+      updateHud(); checkAch(); save();
+      setTimeout(() => { f.classList.remove('on'); toast('Willkommen in ' + LANDS[id].e + ' ' + LANDS[id].name + '!', true); }, 400);
+    }, 700);
+  });
+
+  // =====================================================================
+  // Rucksack
   // =====================================================================
   let tab = 'items';
   const canAfford = c => Object.keys(c).every(i => (S.inv[i] || 0) >= c[i]);
@@ -941,15 +1164,16 @@
     if (tab === 'items') {
       h = '<div class="grid">' + Object.keys(ITEMS).map(i =>
         `<div class="cell${S.inv[i] ? '' : ' zero'}"><div class="e">${ITEMS[i][1]}</div><div class="c">${S.inv[i] || 0}</div><div class="n">${ITEMS[i][0]}</div></div>`).join('') + '</div>' +
-        '<div class="empty">Rohstoffe verkaufst du bei Mira (🧺 Gemischtwaren) auf dem Marktplatz.</div>';
+        '<div class="empty">Rohstoffe verkaufst du bei der Gemischtwaren-Händlerin (🧺) auf dem Marktplatz.</div>';
     } else if (tab === 'tools') {
       h = '<div class="empty" style="padding:0 0 10px">Das passende Werkzeug wird automatisch genommen.</div>' + TOOL_ORDER.map(t => {
         const tier = S.tools[t];
         return `<div class="row"><div class="e">${TOOLS[t]}</div><div class="t"><b>${TOOL_NAMES[t][tier - 1]}</b><small>Stufe ${tier} von 3 · Kraft ×${tier}</small></div>${S.eq === t ? '<span class="tag">✔ In der Hand</span>' : ''}</div>`;
       }).join('');
     } else if (tab === 'hero') {
-      const d = derived();
-      h = S.points > 0 ? `<div class="points">⭐ Du hast ${S.points} Statuspunkt${S.points > 1 ? 'e' : ''} zu verteilen!</div>` : '';
+      const d = derived(), c = CLASSES[cls()];
+      h = S.hero ? `<div class="row"><div class="e">${c.e}</div><div class="t"><b>${esc(S.hero.name)}</b><small>${S.hero.gender === 'f' ? 'Weiblich' : 'Männlich'} · ${c.name} · Level ${S.level} · ${c.bonus}</small></div></div>` : '';
+      h += S.points > 0 ? `<div class="points">⭐ Du hast ${S.points} Statuspunkt${S.points > 1 ? 'e' : ''} zu verteilen!</div>` : '';
       h += STATS.map(([k, e, name, desc]) => `<div class="row stat"><div class="e">${e}</div><div class="t"><b>${name} <small>(${k.toUpperCase()})</small></b><small>${desc}</small></div><span class="v">${S.stat[k]}</span><button data-stat="${k}" ${S.points > 0 ? '' : 'disabled'} aria-label="${name} erhöhen">+</button></div>`).join('');
       h += `<h4>Deine Werte</h4><div class="vals">
         <div><b>❤️ ${d.hpMax}</b>Leben</div><div><b>⚔️ ${d.atk}</b>Angriff</div><div><b>🛡️ ${d.def}</b>Schutz</div>
@@ -959,7 +1183,7 @@
         return g ? `<div class="row"><div class="e">${g.e}<i style="background:${g.color}"></i></div><div class="t"><small>${label}</small><b>${g.name}</b><small>${fmtStat(g)}</small></div><button class="alt" data-unequip="${slot}">Ablegen</button></div>`
           : `<div class="row locked"><div class="e">➖</div><div class="t"><small>${label}</small><b>leer</b><small>Beim Händler kaufen</small></div></div>`;
       }).join('');
-      const spare = Object.keys(S.owned).filter(id => S.gear[GEAR[id].slot] !== id);
+      const spare = Object.keys(S.owned).filter(id => GEAR[id] && S.gear[GEAR[id].slot] !== id && (!GEAR[id].cls || GEAR[id].cls === cls()));
       if (spare.length) h += '<h4>Weitere im Besitz</h4>' + spare.map(id => { const g = GEAR[id]; return `<div class="row"><div class="e">${g.e}<i style="background:${g.color}"></i></div><div class="t"><b>${g.name}</b><small>${fmtStat(g)}</small></div><button data-wear="${id}">Anlegen</button></div>`; }).join('');
       const perks = Object.keys(S.perks).filter(p => S.perks[p]);
       if (perks.length || S.potions) h += '<h4>Besonderes</h4>' + perks.map(p => `<div class="row"><div class="e">${GOODS[p].e}</div><div class="t"><b>${GOODS[p].name}</b><small>${GOODS[p].desc}</small></div><span class="tag">aktiv</span></div>`).join('') +
@@ -982,7 +1206,7 @@
   };
   $('bag').addEventListener('click', () => { if (S.points > 0) tab = 'hero'; $('inv').hidden = false; renderInv(); });
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; curShop = null; }));
-  ['inv', 'shop'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) { $(id).hidden = true; curShop = null; } }));
+  ['inv', 'shop', 'travel', 'chat'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) { $(id).hidden = true; curShop = null; } }));
   $('invTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { tab = b.dataset.tab; renderInv(); } });
   $('invBody').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -1010,15 +1234,106 @@
   });
 
   // =====================================================================
-  // Bewegung: Joystick links, Kamera rechts, Tastatur am PC
+  // Chat (Fenster fertig – Server kommt später)
+  // =====================================================================
+  // Hier wird später ein Server (z. B. Supabase) angeschlossen. Solange ChatNet.connected = false ist,
+  // werden Nachrichten nur auf diesem Gerät gespeichert.
+  const ChatNet = { connected: false, send(channel, msg) { /* später: an Server schicken */ } };
+  const CHAT_KEY = 'cimacu-chat-v1';
+  let chatData = { world: [] }, chatTab = 'world', lastSend = 0, bubbleUntil = 0;
+  try { chatData = JSON.parse(localStorage.getItem(CHAT_KEY)) || chatData; } catch (e) { }
+  const BAD = ['arsch', 'idiot', 'scheiß', 'scheiss', 'fick', 'hure', 'wichser', 'fotze', 'bastard', 'spast', 'missgeburt', 'nazi'];
+  const clean = t => { let s = t; BAD.forEach(w => { s = s.replace(new RegExp(w, 'gi'), m => '*'.repeat(m.length)); }); return s; };
+  const chatChannels = () => [['world', '🌍 Welt'], [S.land, L.e + ' ' + L.name]];
+  const renderChat = () => {
+    $('chatTabs').innerHTML = chatChannels().map(([id, name]) => `<button data-ch="${id}" class="${chatTab === id ? 'on' : ''}">${name}</button>`).join('');
+    const list = chatData[chatTab] || [];
+    const me = S.hero ? S.hero.name : '';
+    $('chatList').innerHTML = '<div class="msg sys">' + (chatTab === 'world' ? 'Welt-Chat: hier schreiben später alle Spieler.' : 'Orts-Chat: nur für Spieler in diesem Land.') + '</div>' +
+      list.map(m => `<div class="msg${m.n === me ? ' me' : ''}"><span class="who">${CLASSES[m.c] ? CLASSES[m.c].e : ''} ${esc(m.n)}</span>${esc(m.t)}</div>`).join('');
+    const cl = $('chatList'); cl.scrollTop = cl.scrollHeight;
+  };
+  $('chatEmoji').innerHTML = ['👋', '😀', '😂', '👍', '❤️', '🔥', '⛏️', '💎', '🪙', '🎉'].map(e => `<button type="button">${e}</button>`).join('');
+  $('chatEmoji').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const i = $('chatIn'); i.value = (i.value + b.textContent).slice(0, 120); i.focus(); });
+  $('chatTabs').addEventListener('click', e => { const b = e.target.closest('[data-ch]'); if (b) { chatTab = b.dataset.ch; renderChat(); } });
+  $('chatBtn').addEventListener('click', () => { $('chat').hidden = false; if (chatTab !== 'world') chatTab = S.land; renderChat(); });
+  $('chatForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const i = $('chatIn'); let t = i.value.trim().replace(/\s+/g, ' ');
+    if (!t || !S.hero) return;
+    if (Date.now() - lastSend < 1500) { toast('Bitte nicht so schnell schreiben 🙂'); return; }
+    lastSend = Date.now();
+    t = clean(t).slice(0, 120);
+    const msg = { n: S.hero.name, c: S.hero.cls, t, ts: Date.now() };
+    (chatData[chatTab] = chatData[chatTab] || []).push(msg);
+    chatData[chatTab] = chatData[chatTab].slice(-60);
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatData)); } catch (err) { }
+    ChatNet.send(chatTab, msg);
+    i.value = ''; renderChat();
+    $('bubble').textContent = t; $('bubble').classList.add('show'); bubbleUntil = performance.now() + 4500;
+  });
+
+  // =====================================================================
+  // Figur erstellen
+  // =====================================================================
+  let creating = false, draft = { name: '', gender: 'm', cls: 'fighter' };
+  const renderCreate = () => {
+    document.querySelectorAll('#cGender button').forEach(b => b.classList.toggle('on', b.dataset.g === draft.gender));
+    $('cClass').innerHTML = Object.keys(CLASSES).map(k => `<button data-c="${k}" class="${draft.cls === k ? 'on' : ''}"><span class="e">${CLASSES[k].e}</span>${CLASSES[k].name}</button>`).join('');
+    $('cDesc').textContent = CLASSES[draft.cls].desc;
+  };
+  const previewHero = () => { const keep = S.hero; S.hero = { name: draft.name || '…', gender: draft.gender, cls: draft.cls }; buildHero(); if (!keep) nameTag && nameTag.setEnabled(false); S.hero = keep; if (!keep) applyGear(); };
+  const openCreate = () => {
+    creating = true; $('create').hidden = false; document.body.classList.add('creating');
+    if (S.hero) draft = { name: S.hero.name, gender: S.hero.gender, cls: S.hero.cls };
+    $('cName').value = draft.name; renderCreate();
+    hero.rotation.y = Math.PI; facing = Math.PI;
+  };
+  $('cGender').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; draft.gender = b.dataset.g; renderCreate(); previewCreate(); });
+  $('cClass').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; draft.cls = b.dataset.c; renderCreate(); previewCreate(); });
+  const previewCreate = () => {
+    const keep = S.hero, gearKeep = Object.assign({}, S.gear);
+    S.hero = { name: draft.name || ' ', gender: draft.gender, cls: draft.cls };
+    const start = CLASSES[draft.cls].start;
+    S.gear = Object.assign({}, S.gear, { weapon: start[0] });
+    buildHero(); if (nameTag) nameTag.setEnabled(false);
+    hero.rotation.y = Math.PI;
+    S.hero = keep; S.gear = gearKeep;
+  };
+  $('cName').addEventListener('input', () => { draft.name = $('cName').value; $('cErr').textContent = ''; });
+  $('cGo').addEventListener('click', () => {
+    const name = $('cName').value.trim().replace(/\s+/g, ' ');
+    if (name.length < 2) { $('cErr').textContent = 'Der Name braucht mindestens 2 Zeichen.'; return; }
+    if (!/^[\p{L}\p{N} _\-]+$/u.test(name)) { $('cErr').textContent = 'Bitte nur Buchstaben, Zahlen, Leerzeichen, - und _.'; return; }
+    if (clean(name) !== name) { $('cErr').textContent = 'Bitte wähle einen freundlichen Namen.'; return; }
+    const isNew = !S.hero;
+    const c = CLASSES[draft.cls];
+    // Grundwerte der Klasse (bei bestehendem Spielstand: Unterschied draufrechnen)
+    const oldBase = S.hero ? CLASSES[S.hero.cls].base : { vit: 5, str: 5, int: 5, dex: 5 };
+    Object.keys(c.base).forEach(k => { S.stat[k] = Math.max(1, S.stat[k] - oldBase[k] + c.base[k]); });
+    S.hero = { name, gender: draft.gender, cls: draft.cls };
+    // Startausrüstung der Klasse
+    c.start.forEach(id => { if (!S.owned[id]) S.owned[id] = true; const g = GEAR[id]; if (!S.gear[g.slot] || (g.slot === 'weapon' && GEAR[S.gear.weapon] && GEAR[S.gear.weapon].cls !== draft.cls)) S.gear[g.slot] = id; });
+    if (S.gear.weapon && GEAR[S.gear.weapon].cls && GEAR[S.gear.weapon].cls !== draft.cls) S.gear.weapon = c.start[0];
+    S.hp = derived().hpMax;
+    save();
+    creating = false; $('create').hidden = true; document.body.classList.remove('creating');
+    buildHero(); updateHud();
+    cam.radius = 12; cam.beta = 1.1;
+    toast((isNew ? 'Willkommen in Cimacu, ' : 'Neu: ') + esc(name) + '! ' + c.e + ' ' + c.name, true);
+    if (isNew) setTimeout(() => toast('🏪 Vorne sind die Händler, rechts das 🧭 Reisetor. Draußen findest du Rohstoffe!'), 3300);
+  });
+
+  // =====================================================================
+  // Steuerung
   // =====================================================================
   const stick = $('stick'), knob = $('knob'), hint = $('hint');
-  const R = 50;
-  let joyId = null, joyStart = null, joy = { x: 0, y: 0 };
-  let camId = null, camLast = null;
+  const RJ = 50;
+  let joyId = null, joyStart = null, joy = { x: 0, y: 0 }, camId = null, camLast = null;
   const homeStick = () => { stick.style.left = '90px'; stick.style.top = (window.innerHeight - 110) + 'px'; stick.style.opacity = '.5'; knob.style.transform = ''; };
   homeStick();
   canvas.addEventListener('pointerdown', e => {
+    if (creating) return;
     hint.style.opacity = '0';
     if (e.clientX < window.innerWidth / 2 && joyId === null) {
       joyId = e.pointerId; joyStart = { x: e.clientX, y: e.clientY };
@@ -1030,9 +1345,9 @@
     if (e.pointerId === joyId) {
       let dx = e.clientX - joyStart.x, dy = e.clientY - joyStart.y;
       const len = Math.hypot(dx, dy);
-      if (len > R) { dx *= R / len; dy *= R / len; }
+      if (len > RJ) { dx *= RJ / len; dy *= RJ / len; }
       knob.style.transform = `translate(${dx}px, ${dy}px)`;
-      joy.x = dx / R; joy.y = -dy / R;
+      joy.x = dx / RJ; joy.y = -dy / RJ;
     } else if (e.pointerId === camId) {
       cam.alpha -= (e.clientX - camLast.x) * 0.008;
       cam.beta = Math.min(1.4, Math.max(0.55, cam.beta - (e.clientY - camLast.y) * 0.005));
@@ -1045,14 +1360,16 @@
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
-
   const keys = {};
   window.addEventListener('keydown', e => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
     const k = e.key.toLowerCase();
     keys[k] = true; hint.style.opacity = '0';
+    if (creating) return;
     if (k === ' ' || k === 'e') { actionHeld = true; startSwing(); }
     if (k === 'i') { $('inv').hidden = !$('inv').hidden; renderInv(); }
-    if (k === 'escape') { $('inv').hidden = true; $('shop').hidden = true; curShop = null; }
+    if (k === 'c') { $('chatBtn').click(); e.preventDefault(); }
+    if (k === 'escape') ['inv', 'shop', 'travel', 'chat'].forEach(id => { $(id).hidden = true; });
   });
   window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'e') actionHeld = false; });
 
@@ -1061,17 +1378,18 @@
   // =====================================================================
   const SPEED = 7;
   let walkT = 0, uiTimer = 0, idleT = 0, perfTimer = 0, regenTimer = 0, occT = 0;
-  const pushOut = (pos, o) => {
-    const dx = pos.x - o.x, dz = pos.z - o.z, min = o.r + 0.45, d2 = dx * dx + dz * dz;
-    if (d2 < min * min && d2 > 0.0001) { const d = Math.sqrt(d2); pos.x = o.x + dx / d * min; pos.z = o.z + dz / d * min; }
+  const pushOut = (p, o) => {
+    const dx = p.x - o.x, dz = p.z - o.z, min = o.r + 0.45, d2 = dx * dx + dz * dz;
+    if (d2 < min * min && d2 > 0.0001) { const d = Math.sqrt(d2); p.x = o.x + dx / d * min; p.z = o.z + dz / d * min; }
   };
   const np = { x: 0, z: 0 };
+  const overlays = ['inv', 'shop', 'travel', 'chat'];
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
     const now = performance.now();
     idleT += dt;
-    const uiOpen = !$('inv').hidden || !$('shop').hidden;
+    const uiOpen = creating || overlays.some(id => !$(id).hidden);
     let jx = uiOpen ? 0 : joy.x, jy = uiOpen ? 0 : joy.y;
     if (!uiOpen) {
       if (keys['a'] || keys['arrowleft']) jx -= 1;
@@ -1094,10 +1412,7 @@
       const dc = Math.hypot(np.x, np.z);
       if (dc > WORLD) { np.x *= WORLD / dc; np.z *= WORLD / dc; }
       hero.position.x = np.x; hero.position.z = np.z;
-      if (!swinging) {
-        const target = Math.atan2(mx, mz);
-        facing += Math.atan2(Math.sin(target - facing), Math.cos(target - facing)) * Math.min(1, dt * 12);
-      }
+      if (!swinging) { const target = Math.atan2(mx, mz); facing += Math.atan2(Math.sin(target - facing), Math.cos(target - facing)) * Math.min(1, dt * 12); }
       hero.rotation.y = facing;
       walkT += dt * 10 * mag;
     } else walkT *= 0.85;
@@ -1108,20 +1423,16 @@
     legL.rotation.x = swing; legR.rotation.x = -swing;
     armL.rotation.x = -swing * 0.8;
     body.position.y = Math.abs(Math.cos(walkT)) * 0.08 * mag + Math.sin(idleT * 2) * 0.015;
-
     if (swinging) {
       swingT += dt / swingDur();
       const t = swingT;
-      let a;
-      if (t < 0.45) a = -2.5 * (t / 0.45);
-      else if (t < 0.62) a = -2.5 + 2.1 * ((t - 0.45) / 0.17);
-      else a = -0.4 * (1 - (t - 0.62) / 0.38);
+      const a = t < 0.45 ? -2.5 * (t / 0.45) : t < 0.62 ? -2.5 + 2.1 * ((t - 0.45) / 0.17) : -0.4 * (1 - (t - 0.62) / 0.38);
       armR.rotation.x = a;
       if (!hitDone && t >= 0.6) { hitDone = true; hit(swingTarget); }
       if (t >= 1) { swingT = -1; armR.rotation.x = 0; if (actionHeld) startSwing(); }
     } else armR.rotation.x = swing * 0.8 * (S.eq === 'bucket' ? 0.4 : 0.5);
+    if (creating) { hero.rotation.y = Math.PI + Math.sin(idleT * 0.8) * 0.35; armR.rotation.z = 0.08; }
 
-    // Händler
     for (const n of npcs) {
       const dx = hero.position.x - n.s.x, dz = hero.position.z - n.s.z, dd = Math.hypot(dx, dz);
       const want = dd < 10 ? Math.atan2(dx, dz) - n.ry : 0;
@@ -1133,8 +1444,8 @@
       if (n.wave > 0) { n.wave -= dt; n.c.armR.rotation.z = 2.6 + Math.sin(n.wave * 14) * 0.35; n.c.armR.rotation.x = 0; }
       else { n.c.armR.rotation.z += (0.08 - n.c.armR.rotation.z) * Math.min(1, dt * 6); n.c.armR.rotation.x = Math.sin(idleT * 1.5 + n.s.z) * 0.06; }
     }
+    if (portal) portal.swirl.rotation.z += dt * 1.5;
 
-    // Rohstoffe: wackeln, verschwinden, nachwachsen
     for (const n of nodes) {
       if (n.shake > 0) {
         n.shake -= dt;
@@ -1152,7 +1463,6 @@
       }
     }
 
-    // Baumkronen, die WEIT vor der Kamera die Figur verdecken, ausblenden (5× pro Sekunde reicht)
     occT -= dt;
     if (occT <= 0) {
       occT = 0.2;
@@ -1166,7 +1476,7 @@
           const t = Math.max(0, Math.min(1, (wx * vx + wz * vz) / vv));
           block = t > 0.1 && Math.hypot(wx - vx * t, wz - vz * t) < 1.4 + n.r;
         }
-        if (block !== n.hidden) { n.hidden = block; n.parts[1].m.isVisible = !block; }
+        if (block !== n.hidden) { n.hidden = block; n.hideIdx.forEach(i => { n.parts[i].m.isVisible = !block; }); }
       }
     }
 
@@ -1177,21 +1487,31 @@
       p.m.scaling.setAll(Math.max(0.01, p.life));
       if (p.life <= 0) p.m.isVisible = false;
     }
+    if (pondMat && !L.frozen) pondMat.alpha = 0.82 + Math.sin(idleT * 1.5) * 0.04;
+    if (snow) snow.emitter.set(hero.position.x, hero.position.y + 14, hero.position.z);
 
-    pondMat.alpha = 0.82 + Math.sin(idleT * 1.5) * 0.04;
-
-    tmpV.set(hero.position.x, hero.position.y + 2, hero.position.z);
+    // Kamera (beim Erstellen nah vor der Figur)
+    if (creating) {
+      tmpV.set(hero.position.x, hero.position.y - 0.4, hero.position.z);
+      cam.alpha += (-Math.PI / 2 - cam.alpha) * Math.min(1, dt * 4);
+      cam.radius += (9.5 - cam.radius) * Math.min(1, dt * 4);
+      cam.beta += (1.45 - cam.beta) * Math.min(1, dt * 4);
+    } else tmpV.set(hero.position.x, hero.position.y + 2, hero.position.z);
     BABYLON.Vector3.LerpToRef(camTarget, tmpV, Math.min(1, dt * 8), camTarget);
     cam.target.copyFrom(camTarget);
 
-    // Leben langsam auffüllen
+    // Sprechblase über dem Kopf
+    const bub = $('bubble');
+    if (bubbleUntil) {
+      if (now > bubbleUntil) { bub.classList.remove('show'); bubbleUntil = 0; }
+      else { const p = toScreen(new BABYLON.Vector3(hero.position.x, hero.position.y + 4.35, hero.position.z)); bub.style.left = p.x + 'px'; bub.style.top = p.y + 'px'; }
+    }
+
     regenTimer += dt;
     if (regenTimer > 1) { regenTimer = 0; if (S.hp < d.hpMax) { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.02); updateHud(); } }
-
     uiTimer -= dt;
-    if (uiTimer <= 0) { uiTimer = 0.12; updateActButton(); }
+    if (uiTimer <= 0) { uiTimer = 0.12; if (!creating) updateActButton(); }
 
-    // Auflösung automatisch anpassen, damit es flüssig bleibt
     perfTimer += dt;
     if (perfTimer > 2) {
       perfTimer = 0;
@@ -1201,9 +1521,14 @@
     }
   });
 
-  refreshTools(); applyGear(); updateHud();
-  scene.freezeMaterials && Object.values(matCache).forEach(m => m.freeze());
-  if (!S.stats.k_tree && !S.inv.wood) setTimeout(() => toast('🏪 Willkommen! Vorne sind die Händler – draußen im Wald findest du Rohstoffe.'), 1500);
+  // =====================================================================
+  // Start
+  // =====================================================================
+  buildLand(S.land);
+  buildHero();
+  hero.position.set(-2.5, 0, -6);
+  updateHud();
+  if (!S.hero) { previewCreate(); openCreate(); }
   engine.runRenderLoop(() => scene.render());
   window.addEventListener('resize', () => { engine.resize(); if (joyId === null) homeStick(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });})();
