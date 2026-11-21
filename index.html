@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1b2a4a">
 <title>Cimacu</title>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -39,7 +39,17 @@
 <button id="potBtn" aria-label="Heiltrank trinken" hidden>🧪<b id="potCnt">0</b></button>
 <div id="abilities"></div>
 <div id="mobBar" hidden></div>
+<div id="bossBar" hidden><div class="bbHead"><b id="bossName"></b><span id="bossHp"></span></div><div class="bb"><i id="bossFill"></i></div></div>
 <div id="hurt"></div>
+<div id="boxOpen" class="overlay" hidden><div class="boxCard" id="boxCard"></div></div>
+<!-- Dungeons -->
+<div id="dungeon" class="overlay" hidden>
+  <div class="sheet">
+    <div class="sheetHead"><span>🕳️ Dungeons</span><button class="closeBtn" data-close="dungeon" aria-label="Schließen">✕</button></div>
+    <div class="greet">Tief unten warten Wachen und ein Boss. Nur Bosse lassen 🎁 Überraschungsboxen fallen!</div>
+    <div id="dungeonBody" class="body" style="margin-top:10px"></div>
+  </div>
+</div>
 <div id="death" class="overlay" hidden><div class="deathCard"><div class="skull">💫</div><h2>Besiegt!</h2><p id="deathTxt"></p><button id="deathGo" class="wide go">Weiter</button></div></div>
 <button id="act"><span id="actIcon">✋</span><span id="actLabel">—</span><svg id="actRing" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/></svg></button>
 
@@ -111,7 +121,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.0.0/babylon.js"></script>
-<script src="config.js?v=9"></script>
-<script src="game.js?v=9"></script>
+<script src="config.js?v=10"></script>
+<script src="game.js?v=10"></script>
 </body>
 </html>

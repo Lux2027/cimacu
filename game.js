@@ -30,10 +30,22 @@
     iron: ['Eisen', '🔩'], gold: ['Golderz', '🟡'], crystal: ['Kristall', '💎'],
     ice: ['Eiskristall', '🧊'], cactus: ['Kaktusfrucht', '🌵'], silver: ['Silbererz', '🥈'],
     fur: ['Tierfell', '🦊'], tusk: ['Eberzahn', '🦷'], wolf: ['Wolfspelz', '🐺'], bear: ['Eisbärfell', '🐻'],
-    sting: ['Skorpionstachel', '🦂'], venom: ['Schlangengift', '🐍'], horn: ['Steinbockhorn', '🐐'], claw: ['Bärenklaue', '🐾']
+    sting: ['Skorpionstachel', '🦂'], venom: ['Schlangengift', '🐍'], horn: ['Steinbockhorn', '🐐'], claw: ['Bärenklaue', '🐾'],
+    soul: ['Seelenstein', '🔮']
   };
   const SELL = { wood: 2, stone: 2, dirt: 1, water: 1, iron: 6, gold: 15, crystal: 40, ice: 30, cactus: 10, silver: 25,
-    fur: 6, tusk: 10, wolf: 20, bear: 40, sting: 55, venom: 50, horn: 85, claw: 120 };
+    fur: 6, tusk: 10, wolf: 20, bear: 40, sting: 55, venom: 50, horn: 85, claw: 120, soul: 60 };
+  // Überraschungsboxen (nur von Bossen)
+  const BOXES = {
+    box1: { name: 'Bronze-Überraschungsbox', e: '🎁', tier: 1, color: '#cd7f32', from: 'Keilerkönig Grunzbart' },
+    box2: { name: 'Silber-Überraschungsbox', e: '🎁', tier: 2, color: '#9fc8e8', from: 'Frostbär Ymir' },
+    box3: { name: 'Gold-Überraschungsbox', e: '🎁', tier: 3, color: '#ffc533', from: 'Glutskorpion Ignis' }
+  };
+  // Seltenheit: Name, Farbe, Stärke-Faktor, Anzahl Bonuswerte
+  const RARITY = [['Gewöhnlich', '#9aa0a8', 1, 1], ['Selten', '#3d8bff', 1.25, 2], ['Episch', '#a64dff', 1.55, 3], ['Legendär', '#ff9d00', 2.0, 4]];
+  // Chancen je Box (je stärker der Boss, desto besser)
+  const RARITY_RATE = { 1: [62, 29, 8, 1], 2: [35, 40, 20, 5], 3: [12, 33, 38, 17] };
+  const UP_MAX = 10, UP_CHANCE = [100, 100, 100, 90, 80, 70, 60, 50, 40, 30];
   // Heiltränke in drei Größen
   const CONS = {
     potion: { name: 'Kleiner Heiltrank', e: '🧪', heal: 50, color: '#ff6fb5' },
@@ -219,7 +231,13 @@
     { id: 'silver1', e: '🥈', name: 'Silberader', desc: 'Baue Silbererz ab', test: s => (s.stats.silver || 0) >= 1 },
     { id: 'rich', e: '💰', name: 'Wohlhabend', desc: 'Verdiene insgesamt 1000 Cim', test: s => (s.stats.earned || 0) >= 1000 },
     { id: 'lvl5', e: '⭐', name: 'Abenteurer', desc: 'Erreiche Level 5', test: s => s.level >= 5 },
-    { id: 'master', e: '👑', name: 'Meister', desc: 'Alle Werkzeuge auf Stufe 3', test: s => TOOL_ORDER.every(t => s.tools[t] >= 3) }
+    { id: 'master', e: '👑', name: 'Meister', desc: 'Alle Werkzeuge auf Stufe 3', test: s => TOOL_ORDER.every(t => s.tools[t] >= 3) },
+    { id: 'boss1', e: '🐗', name: 'Keilerjäger', desc: 'Besiege den Keilerkönig in der Wurzelhöhle', test: s => (s.stats.boss1 || 0) >= 1 },
+    { id: 'boss2', e: '🐻‍❄️', name: 'Frostbrecher', desc: 'Besiege Frostbär Ymir in der Frostgruft', test: s => (s.stats.boss2 || 0) >= 1 },
+    { id: 'boss3', e: '🔥', name: 'Glutbezwinger', desc: 'Besiege Glutskorpion Ignis im Glutschlund', test: s => (s.stats.boss3 || 0) >= 1 },
+    { id: 'box1', e: '🎁', name: 'Überraschung!', desc: 'Öffne deine erste Überraschungsbox', test: s => (s.stats.boxes || 0) >= 1 },
+    { id: 'legend', e: '🌟', name: 'Legendär', desc: 'Finde einen legendären Gegenstand', test: s => (s.stats.legend || 0) >= 1 },
+    { id: 'up5', e: '⚒️', name: 'Meisterschmied', desc: 'Verbessere einen Gegenstand auf +5', test: s => Object.values(s.up || {}).some(v => v >= 5) }
   ];
   const xpNeed = l => Math.round(40 * Math.pow(l, 1.5));
   const POINTS_PER_LEVEL = 3;
@@ -243,15 +261,29 @@
   if (S.perks && S.perks.boots) { S.owned.b2 = true; if (!S.gear.boots) S.gear.boots = 'b2'; delete S.perks.boots; }
   if (S.perks && S.perks.amulet) { S.owned.j1 = true; if (!S.gear.amulet) S.gear.amulet = 'j1'; delete S.perks.amulet; }
   if (!LANDS[S.land]) S.land = 'gruen';
+  S.up = S.up || {}; S.uitems = S.uitems || {};
+  Object.assign(GEAR, S.uitems);                     // Gegenstände aus Überraschungsboxen
+  Object.keys(GEAR).forEach(k => { GEAR[k].id = k; });
   const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { } };
 
   const cls = () => (S.hero && CLASSES[S.hero.cls]) ? S.hero.cls : 'fighter';
+  // Verbesserte Werte (+1 … +10)
+  const upLv = g => (g && S.up[g.id]) || 0;
+  const upVal = (base, lv) => base ? base + Math.ceil(base * 0.12 * lv) + lv : 0;
+  const gAtk = g => upVal(g.atk || 0, upLv(g)), gDef = g => upVal(g.def || 0, upLv(g));
+  const gName = g => g.name + (upLv(g) ? ' +' + upLv(g) : '');
+  // Bonus-Statuswerte der angelegten Ausrüstung
+  const gearStats = () => {
+    const b = { vit: 0, str: 0, int: 0, dex: 0 };
+    SLOTS.forEach(([slot]) => { const g = S.gear[slot] && GEAR[S.gear[slot]]; if (g && g.st) Object.keys(b).forEach(k => { b[k] += g.st[k] || 0; }); });
+    return b;
+  };
   const derived = () => {
-    const s = S.stat, c = cls();
+    const gb = gearStats(), s = { vit: S.stat.vit + gb.vit, str: S.stat.str + gb.str, int: S.stat.int + gb.int, dex: S.stat.dex + gb.dex }, c = cls();
     let atk = 1 + s.str, def = 0, spd = 0, xp = 0, sell = 0, luck = 0;
     SLOTS.forEach(([slot]) => {
       const g = S.gear[slot] && GEAR[S.gear[slot]];
-      if (g) { atk += g.atk || 0; def += g.def || 0; spd += g.spd || 0; xp += g.xp || 0; sell += g.sell || 0; luck += g.luck || 0; }
+      if (g) { atk += gAtk(g); def += gDef(g); spd += g.spd || 0; xp += g.xp || 0; sell += g.sell || 0; luck += g.luck || 0; }
     });
     return {
       hpMax: Math.round((50 + s.vit * 10) * (c === 'fighter' ? 1.1 : 1)), atk, def, luck,
@@ -346,6 +378,7 @@
   const WORLD = 90;
   let L = LANDS[S.land], landStuff = [], landMats = [];
   let nodes = [], solids = [], npcs = [], PONDS = [], holes = [], holeIdx = 0, SHOPS = [], portal = null, snow = null, pondMat = null;
+  let dgate = null, inDungeon = null, dExit = null, boss = null, slamRing = null, dunGlow = null;
 
   const baseHeight = (x, z) => {
     const d = Math.sqrt(x * x + z * z);
@@ -402,6 +435,8 @@
       g.addColorStop(0, L.sky[0]); g.addColorStop(0.45, L.sky[1]); g.addColorStop(0.6, L.sky[2]); g.addColorStop(1, L.sky[3]);
       c.fillStyle = g; c.fillRect(0, 0, 4, 256); skyTex.update(); }
     scene.fogColor = C3(L.fog); scene.clearColor = BABYLON.Color4.FromColor3(C3(L.fog), 1);
+    sky.isVisible = true; scene.fogStart = 45; scene.fogEnd = 130;
+    dExit = null; boss = null; slamRing = null; dunGlow = null; sun.diffuse = new BABYLON.Color3(1, 0.95, 0.85);
     hemi.intensity = 0.75 * L.light; sun.intensity = 0.85 * L.light;
     hemi.groundColor = id === 'eis' ? new BABYLON.Color3(0.6, 0.66, 0.75) : new BABYLON.Color3(0.42, 0.4, 0.5);
     ip.exposure = id === 'eis' ? 1.05 : 1.25;
@@ -682,6 +717,32 @@
       portal = { node, swirl, front: toWorld(0, 1.6), back: toWorld(0, -1.6), x: px, z: pz };
     }
 
+    // Dungeon-Tor (Höhleneingang gegenüber vom Reisetor)
+    {
+      const px = -8.5, pz = -7, node = TN('dgate');
+      node.position.set(px, 0, pz);
+      const ry = Math.atan2(-px, -pz); node.rotation.y = ry;
+      const P = [];
+      for (let i = 0; i <= 8; i++) {
+        const a = Math.PI * i / 8, s = i % 2 ? 0.95 : 1.15;
+        P.push(part('ico', { radius: 0.75 * s, subdivisions: 1 }, i % 2 ? '#5a5260' : '#4a4450', Math.cos(a) * 1.9, Math.sin(a) * 2.6 + 0.3, 0, [1, 1, 0.9]));
+      }
+      P.push(part('ico', { radius: 0.5, subdivisions: 1 }, '#3a3440', -2.3, 0.3, 0.3)); P.push(part('ico', { radius: 0.45, subdivisions: 1 }, '#3a3440', 2.3, 0.3, 0.3));
+      P.push(part('sph', { diameter: 0.45, segments: 8 }, '#efe8d8', 0, 3.0, 0.45, [1, 0.9, 0.8]));          // Totenkopf
+      [-1, 1].forEach(s => P.push(part('sph', { diameter: 0.12, segments: 5 }, '#1a1418', 0.09 * s, 3.03, 0.66)));
+      [-1, 1].forEach(s => { P.push(part('cyl', { diameter: 0.1, height: 1.3, tessellation: 5 }, '#4a3020', 2.7 * s, 0.65, 0.6)); P.push(part('sph', { diameter: 0.32, segments: 6 }, '#ff9a2a', 2.7 * s, 1.4, 0.6)); });
+      group('dgateM', P, node);
+      const hole = MB.CreateDisc('dgateHole', { radius: 1.55, tessellation: 24 }, scene);
+      hole.parent = node; hole.position.set(0, 1.45, -0.05); hole.scaling.y = 1.15; hole.isPickable = false;
+      const hm = new BABYLON.StandardMaterial('dgateHoleM', scene); hm.diffuseColor = C3('#0a0610'); hm.emissiveColor = C3('#2a0a3a'); hm.specularColor = BABYLON.Color3.Black(); hm.backFaceCulling = false;
+      hole.material = hm; landMats.push(hm);
+      const sign = makeSign('dgate', '🕳️ Dungeons', '#3a1020'); sign.parent = node; sign.position.set(0, 4.05, 0); sign.scaling.setAll(0.8);
+      const toWorld = (lx, lz) => ({ x: px + lx * Math.cos(ry) + lz * Math.sin(ry), z: pz - lx * Math.sin(ry) + lz * Math.cos(ry) });
+      [-1.9, 1.9].forEach(lx => { const w = toWorld(lx, 0); solids.push({ x: w.x, z: w.z, r: 0.8 }); });
+      addBlob(px, 0, pz, 5);
+      dgate = { front: toWorld(0, 1.8) };
+    }
+
     // Schneefall im Eisland
     if (L.weather === 'snow') {
       const st = new BABYLON.DynamicTexture('snowT', { width: 32, height: 32 }, scene, false);
@@ -903,7 +964,7 @@
     helmNode.setEnabled(!!S.gear.helmet); armorNode.setEnabled(!!S.gear.armor); shieldNode.setEnabled(!!S.gear.shield);
     SLOTS.forEach(([slot]) => {
       const g = S.gear[slot] && GEAR[S.gear[slot]];
-      if (g && GM[slot]) { GM[slot].diffuseColor = C3(g.color); GM[slot].emissiveColor = g.glow || slot === 'amulet' ? C3(g.color).scale(0.4) : BABYLON.Color3.Black(); }
+      if (g && GM[slot]) { GM[slot].diffuseColor = C3(g.color); GM[slot].emissiveColor = g.glow || upLv(g) >= 7 || slot === 'amulet' ? C3(g.color).scale(upLv(g) >= 7 ? 0.6 : 0.4) : BABYLON.Color3.Black(); }
     });
     const a = S.gear.armor && GEAR[S.gear.armor];
     pads.setEnabled(!!(a && a.pads));
@@ -1029,6 +1090,8 @@
     const hx = hero.position.x, hz = hero.position.z;
     const mob = mobInReach(); if (mob) return { kind: 'mob', mob };
     const pl = playerTarget(cls() === 'mage' ? 8 : 2.6); if (pl) return { kind: 'player', pl };
+    if (dgate && Math.hypot(dgate.front.x - hx, dgate.front.z - hz) < 2.8) return { kind: 'dgate' };
+    if (dExit && Math.hypot(dExit.x - hx, dExit.z - hz) < 2.8) return { kind: 'dexit' };
     if (portal && Math.hypot(portal.front.x - hx, portal.front.z - hz) < 2.6) return { kind: 'portal' };
     if (portal && Math.hypot(portal.back.x - hx, portal.back.z - hz) < 2.0) return { kind: 'portal' };
     for (const s of SHOPS) if (Math.hypot(s.front.x - hx, s.front.z - hz) < 2.4) return { kind: 'shop', shop: s };
@@ -1047,7 +1110,7 @@
     }
     if (best) return { kind: best.kind, node: best };
     for (const p of PONDS) if (Math.hypot(hx - p.x, hz - p.z) < p.r + 1.6) return { kind: 'water', pond: p };
-    if (Math.hypot(hx, hz) > 15) return { kind: 'earth', x: hx + fx * 1.3, z: hz + fz * 1.3 };
+    if (!inDungeon && Math.hypot(hx, hz) > 15) return { kind: 'earth', x: hx + fx * 1.3, z: hz + fz * 1.3 };
     return null;
   };
 
@@ -1063,6 +1126,8 @@
     if (!tgt) { toast('Hier gibt es nichts abzubauen. Geh in die Natur, zu einem Händler oder zum Reisetor.'); actionHeld = false; return; }
     if (tgt.kind === 'shop') { actionHeld = false; openShop(tgt.shop); return; }
     if (tgt.kind === 'portal') { actionHeld = false; openTravel(); return; }
+    if (tgt.kind === 'dgate') { actionHeld = false; openDungeons(); return; }
+    if (tgt.kind === 'dexit') { actionHeld = false; leaveDungeon(); return; }
     if (tgt.kind === 'mob') {
       facing = Math.atan2(tgt.mob.x - hero.position.x, tgt.mob.z - hero.position.z); hero.rotation.y = facing;
       combatT = 5; swingT = 0; swingTarget = tgt; hitDone = false; return;
@@ -1138,6 +1203,8 @@
     if (!tgt) { key = 'none'; icon = '✋'; label = 'Nichts hier'; }
     else if (tgt.kind === 'shop') { key = 'shop' + tgt.shop.id; icon = '🛒'; label = 'Handeln'; }
     else if (tgt.kind === 'portal') { key = 'portal'; icon = '🧭'; label = 'Reisen'; }
+    else if (tgt.kind === 'dgate') { key = 'dgate'; icon = '🕳️'; label = 'Dungeons'; }
+    else if (tgt.kind === 'dexit') { key = 'dexit'; icon = '🚪'; label = 'Verlassen'; }
     else if (tgt.kind === 'mob') { const w = S.gear.weapon && GEAR[S.gear.weapon]; key = 'mob' + (w ? w.e : ''); icon = w ? w.e : '👊'; label = 'Angreifen'; }
     else if (tgt.kind === 'player') { key = 'pl'; icon = '⚔️'; label = 'Duell'; }
     else {
@@ -1150,7 +1217,7 @@
       lastBtn = key;
       $('actIcon').textContent = icon; $('actLabel').textContent = label;
       act.classList.toggle('off', !tgt);
-      act.classList.toggle('shop', !!tgt && (tgt.kind === 'shop' || tgt.kind === 'portal'));
+      act.classList.toggle('shop', !!tgt && ['shop', 'portal', 'dgate', 'dexit'].includes(tgt.kind));
       act.classList.toggle('fight', !!tgt && (tgt.kind === 'mob' || tgt.kind === 'player'));
     }
     ring.style.strokeDashoffset = tgt && tgt.node ? 289 * Math.max(0, tgt.node.hp / KINDS[tgt.kind].hp)
@@ -1305,8 +1372,9 @@
 
   const gearStatText = g => {
     const p = [];
-    if (g.atk) p.push('⚔️ Angriff +' + g.atk);
-    if (g.def) p.push('🛡️ Schutz +' + g.def);
+    if (g.atk) p.push('⚔️ Angriff +' + gAtk(g));
+    if (g.def) p.push('🛡️ Schutz +' + gDef(g));
+    if (g.st) STATS.forEach(([k, e]) => { if (g.st[k]) p.push(e + ' ' + k.toUpperCase() + ' +' + g.st[k]); });
     if (g.spd) p.push('⚡ Tempo +' + Math.round(g.spd * 100) + ' %');
     if (g.xp) p.push('📚 XP +' + Math.round(g.xp * 100) + ' %');
     if (g.sell) p.push('💰 Preise +' + Math.round(g.sell * 100) + ' %');
@@ -1318,7 +1386,7 @@
 
   const dollSlot = slot => {
     const id = S.gear[slot], g = id && GEAR[id], s = SLOTS.find(x => x[0] === slot);
-    if (g) return `<button class="dslot on" data-slot="${slot}" style="--c:${g.color}"><span class="de">${g.e}</span><span class="dl">${g.name}</span></button>`;
+    if (g) return `<button class="dslot on" data-slot="${slot}" style="--c:${g.rar != null ? RARITY[g.rar][1] : g.color}"><span class="de">${g.e}</span><span class="dl">${esc(gName(g))}</span></button>`;
     if (slot === 'clothes') return `<button class="dslot std" data-slot="clothes"><span class="de">👕</span><span class="dl">Standard</span></button>`;
     return `<button class="dslot" data-slot="${slot}"><span class="de faded">${s[2]}</span><span class="dl">${s[1]}</span></button>`;
   };
@@ -1336,8 +1404,10 @@
       const g = GEAR[id], c = catOf(g);
       if (invCat !== 'all' && invCat !== c) return;
       const worn = S.gear[g.slot] === id;
-      cells.push(`<button class="icell${worn ? ' worn' : ''}" data-item="${id}" style="--c:${g.color}"><span class="ie">${g.e}</span><span class="in">${g.name}</span>${worn ? '<span class="ok">✔</span>' : ''}</button>`);
+      const rc = g.rar != null ? RARITY[g.rar][1] : g.color, ul = upLv(g);
+      cells.push(`<button class="icell${worn ? ' worn' : ''}${g.rar != null ? ' rar' + g.rar : ''}" data-item="${id}" style="--c:${rc}"><span class="ie">${g.e}</span><span class="in">${esc(g.name)}</span>${ul ? `<span class="upl">+${ul}</span>` : ''}${worn ? '<span class="ok">✔</span>' : ''}</button>`);
     });
+    if (invCat === 'all' || invCat === 'items') Object.keys(BOXES).forEach(id => { if (S.bag[id]) cells.push(`<button class="icell boxc" data-box="${id}" style="--c:${BOXES[id].color}"><span class="ie">${BOXES[id].e}</span><span class="in">${BOXES[id].name.split('-')[0]}-Box</span><span class="cnt">${S.bag[id]}</span></button>`); });
     if (invCat === 'all' || invCat === 'items') Object.keys(CONS).forEach(id => { if (S.bag[id]) cells.push(`<button class="icell" data-item="${id}" style="--c:${CONS[id].color}"><span class="ie">${CONS[id].e}</span><span class="in">${CONS[id].name}</span><span class="cnt">${S.bag[id]}</span></button>`); });
     if (invCat === 'all' || invCat === 'raw') Object.keys(ITEMS).forEach(i => { if (S.inv[i] > 0) cells.push(`<button class="icell raw" data-raw="${i}"><span class="ie">${ITEMS[i][1]}</span><span class="in">${ITEMS[i][0]}</span><span class="cnt">${S.inv[i]}</span></button>`); });
     h += cells.length ? `<div class="igrid">${cells.join('')}</div>` : '<div class="empty">Hier ist noch nichts. Sammle Rohstoffe oder kaufe etwas bei den Händlern!</div>';
@@ -1357,7 +1427,8 @@
     <div class="bar hp"><i style="width:${S.hp / d.hpMax * 100}%"></i><span>❤ ${Math.round(S.hp)} / ${d.hpMax} Leben</span></div></div>`;
     h += '<h4>Status</h4>';
     h += S.points > 0 ? `<div class="points">⭐ Du hast ${S.points} Statuspunkt${S.points > 1 ? 'e' : ''} zu verteilen!</div>` : '';
-    h += STATS.map(([k, e, name, desc]) => `<div class="row stat"><div class="e">${e}</div><div class="t"><b>${name} <small>(${k.toUpperCase()})</small></b><small>${desc}</small></div><span class="v">${S.stat[k]}</span><button data-stat="${k}" ${S.points > 0 ? '' : 'disabled'} aria-label="${name} erhöhen">+</button></div>`).join('');
+    const gb = gearStats();
+    h += STATS.map(([k, e, name, desc]) => `<div class="row stat"><div class="e">${e}</div><div class="t"><b>${name} <small>(${k.toUpperCase()})</small></b><small>${desc}</small>${gb[k] ? `<small class="up">+${gb[k]} durch Ausrüstung</small>` : ''}</div><span class="v">${S.stat[k] + gb[k]}</span><button data-stat="${k}" ${S.points > 0 ? '' : 'disabled'} aria-label="${name} erhöhen">+</button></div>`).join('');
     h += `<h4>Werte</h4><div class="vals">
       <div><b>❤️ ${d.hpMax}</b>Leben</div><div><b>⚔️ ${d.atk}</b>Angriff</div><div><b>🛡️ ${d.def}</b>Schutz</div>
       <div><b>⚡ ${pct(d.speed - 1)}</b>Lauftempo</div><div><b>⛏️ ${pct(d.power - 1)}</b>Abbau-Kraft</div><div><b>🔁 ${pct(d.swing - 1)}</b>Schlagtempo</div>
@@ -1380,6 +1451,112 @@
     return h;
   };
 
+  // =====================================================================
+  // Überraschungsboxen & Verbessern
+  // =====================================================================
+  const GEN = {
+    // Grundwerte je Box-Stufe (1/2/3)
+    weapon: { atk: [12, 22, 34], price: [500, 1400, 3500] },
+    armor: { def: [6, 11, 17], price: [450, 1200, 3000] },
+    helmet: { def: [3, 6, 9], price: [300, 800, 2000] },
+    shield: { def: [4, 7, 11], price: [350, 900, 2300] },
+    boots: { def: [2, 4, 6], spd: [0.08, 0.12, 0.16], price: [300, 800, 2000] },
+    amulet: { price: [400, 1000, 2600] }
+  };
+  const GEN_NAMES = {
+    pre: { 1: 'Keiler', 2: 'Frost', 3: 'Glut' },
+    col: { 1: '#b0743a', 2: '#8fdcff', 3: '#ff6a2a' },
+    weapon: { sword: ['schwert', '🗡️'], staff: ['stab', '🪄'], dagger: ['dolch', '🔪'] },
+    armor: ['panzer', '🦺'], helmet: ['helm', '🪖'], shield: ['schild', '🛡️'], boots: ['stiefel', '👢'], amulet: ['amulett', '📿']
+  };
+  const pickW = w => { let r = Math.random() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; } return w.length - 1; };
+  const genItem = tier => {
+    const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'amulet'];
+    const slot = slots[pickW([30, 18, 14, 12, 13, 13])];
+    const rar = pickW(RARITY_RATE[tier]), R = RARITY[rar], G = GEN[slot], v = () => rnd(0.9, 1.1);
+    const g = { slot, rar, price: Math.round(G.price[tier - 1] * R[2]), from: BOXES['box' + tier].from, st: {} };
+    const pre = GEN_NAMES.pre[tier];
+    if (slot === 'weapon') {
+      const c = cls(), type = c === 'mage' ? 'staff' : c === 'spy' ? 'dagger' : 'sword', [nm, e] = GEN_NAMES.weapon[type];
+      Object.assign(g, { cls: c, type, name: pre + nm, e, atk: Math.round(G.atk[tier - 1] * R[2] * v()) });
+    } else {
+      const [nm, e] = GEN_NAMES[slot];
+      Object.assign(g, { name: pre + nm, e });
+      if (G.def) g.def = Math.round(G.def[tier - 1] * R[2] * v());
+      if (G.spd) g.spd = Math.round(G.spd[tier - 1] * R[2] * 100) / 100;
+      if (slot === 'armor' && rar >= 1) g.pads = true;
+      if (slot === 'amulet') { const k = ['luck', 'xp', 'sell'][Math.floor(Math.random() * 3)]; g[k] = Math.round((0.06 + 0.04 * tier) * R[2] * 100) / 100; }
+    }
+    // Bonus-Statuswerte: je seltener, desto mehr
+    const keys = ['vit', 'str', 'int', 'dex'].sort(() => Math.random() - 0.5).slice(0, R[3]);
+    keys.forEach(k => { g.st[k] = Math.max(1, Math.round(rnd(1, 3) * tier * (1 + 0.35 * rar))); });
+    g.color = GEN_NAMES.col[tier]; g.glow = rar >= 2;
+    const id = 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    g.id = id; GEAR[id] = g; S.uitems[id] = g; S.owned[id] = true;
+    return g;
+  };
+  const openBox = boxId => {
+    if (!S.bag[boxId]) return;
+    S.bag[boxId]--;
+    const g = genItem(BOXES[boxId].tier);
+    S.stats.boxes = (S.stats.boxes || 0) + 1;
+    if (g.rar === 3) S.stats.legend = (S.stats.legend || 0) + 1;
+    const R = RARITY[g.rar];
+    $('boxCard').innerHTML = `<div class="bxglow" style="--c:${R[1]}"></div><div class="bxe">${g.e}</div><div class="bxr" style="color:${R[1]}">★ ${R[0]}</div><b>${esc(g.name)}</b><small>${gearStatText(g)}</small>
+      <div class="pbtns"><button data-bxeq="${g.id}">Anlegen</button><button class="alt" data-bxok="1">Behalten</button></div>`;
+    $('boxCard').style.setProperty('--c', R[1]);
+    $('boxOpen').hidden = false;
+    vibrate(g.rar >= 2 ? [40, 40, 120] : 40);
+    if (g.rar >= 2) confetti();
+    checkAch(); save();
+  };
+  $('boxOpen').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b && b.dataset.bxeq) { if (equip(b.dataset.bxeq)) toast('✔ ' + esc(GEAR[b.dataset.bxeq].name) + ' angelegt'); else toast('Das passt nicht zu deiner Klasse.'); }
+    if (b || e.target.id === 'boxOpen') { $('boxOpen').hidden = true; save(); updateHud(); if (!$('inv').hidden) renderInv(); }
+  });
+  const sellGenerated = id => {
+    const g = GEAR[id]; if (!g || g.rar == null || Object.values(S.gear).includes(id)) return;
+    const v = Math.round(g.price * 0.3);
+    S.money += v; S.stats.earned = (S.stats.earned || 0) + v;
+    delete S.owned[id]; delete S.uitems[id]; delete S.up[id]; delete GEAR[id];
+    toast('💰 Verkauft für ' + v + ' ' + CIM); bump('money');
+  };
+  // Kosten für die nächste Stufe
+  const upCost = g => {
+    const n = upLv(g), base = g.price || 100;
+    const c = { cim: Math.round(base * 0.12 * (n + 1) + 15 * (n + 1)), mats: {} };
+    if (n < 3) c.mats.iron = 2 + n * 2;
+    else if (n < 6) { c.mats.gold = n - 1; c.mats.iron = 4; }
+    else { c.mats.crystal = n - 4; c.mats.soul = n - 5; }
+    return c;
+  };
+  const upgradeBox = g => {
+    const n = upLv(g);
+    if (n >= UP_MAX) return `<div class="upbox"><b>⭐ Maximal verbessert (+${UP_MAX})</b></div>`;
+    const c = upCost(g), ok = S.money >= c.cim && Object.keys(c.mats).every(i => (S.inv[i] || 0) >= c.mats[i]);
+    const was = (g.atk ? gAtk(g) : gDef(g));
+    S.up[g.id] = n + 1; const will = (g.atk ? gAtk(g) : gDef(g)); S.up[g.id] = n; if (!n) delete S.up[g.id];
+    const costs = `<span class="cost${S.money >= c.cim ? '' : ' miss'}">${CIM} ${S.money}/${c.cim}</span>` + Object.keys(c.mats).map(i => `<span class="cost${(S.inv[i] || 0) >= c.mats[i] ? '' : ' miss'}">${ITEMS[i][1]} ${S.inv[i] || 0}/${c.mats[i]}</span>`).join('');
+    return `<div class="upbox"><b>⬆️ +${n} → +${n + 1}</b><small>${g.atk ? '⚔️ Angriff' : '🛡️ Schutz'}: ${was} → <span class="up">${will}</span> · Erfolgschance <b>${UP_CHANCE[n]} %</b></small><div>${costs}</div>
+      ${UP_CHANCE[n] < 100 ? '<small>Bei Misserfolg sind Cim und Material weg – der Gegenstand bleibt aber heil.</small>' : ''}
+      <div class="pbtns"><button data-upgo="${g.id}" ${ok ? '' : 'disabled'}>Verbessern</button><button class="alt" data-upback="${g.id}">Zurück</button></div></div>`;
+  };
+  const doUpgrade = id => {
+    const g = GEAR[id]; if (!g) return;
+    const n = upLv(g); if (n >= UP_MAX) return;
+    const c = upCost(g);
+    if (S.money < c.cim || !Object.keys(c.mats).every(i => (S.inv[i] || 0) >= c.mats[i])) return;
+    S.money -= c.cim; Object.keys(c.mats).forEach(i => { S.inv[i] -= c.mats[i]; });
+    if (Math.random() * 100 < UP_CHANCE[n]) {
+      S.up[id] = n + 1;
+      toast(`⚒️ Geschafft! ${esc(g.name)} ist jetzt +${n + 1}`, true); vibrate([30, 30, 80]);
+      burst(hero.position.x, hero.position.y + 2, hero.position.z, '#ffd23f', 16);
+      if (n + 1 >= 5) confetti();
+    } else { toast('💥 Leider fehlgeschlagen … versuch es nochmal!'); vibrate(80); }
+    applyGear(); checkAch(); bump('money');
+  };
+
   const renderItemPop = () => {
     const box = $('itemPop');
     if (!popItem) { box.hidden = true; return; }
@@ -1394,9 +1571,20 @@
       const id = popItem.id, g = GEAR[id], worn = S.gear[g.slot] === id;
       const cur = S.gear[g.slot] && GEAR[S.gear[g.slot]];
       let cmp = '';
-      if (!worn && cur) { const dv = (g.atk || g.def || 0) - (cur.atk || cur.def || 0); if (dv) cmp = `<small class="${dv > 0 ? 'up' : 'down'}">${dv > 0 ? '▲ +' : '▼ '}${dv} gegenüber ${cur.name}</small>`; }
-      h = `<div class="pe" style="--c:${g.color}">${g.e}</div><b>${g.name}</b><small>${slotLabel(g.slot)}${g.cls ? ' · nur ' + CLASSES[g.cls].name : ''}</small><small>${gearStatText(g)}</small>${g.desc ? `<small>${g.desc}</small>` : ''}${cmp}
-        <div class="pbtns">${worn ? `<button class="alt" data-off="${g.slot}">${g.slot === 'clothes' ? 'Ablegen → Standardkleidung' : 'Ablegen'}</button>` : `<button data-on="${id}">Anlegen</button>`}</div>`;
+      if (!worn && cur) { const dv = (gAtk(g) || gDef(g)) - (gAtk(cur) || gDef(cur)); if (dv) cmp = `<small class="${dv > 0 ? 'up' : 'down'}">${dv > 0 ? '▲ +' : '▼ '}${dv} gegenüber ${esc(gName(cur))}</small>`; }
+      const rar = g.rar != null ? `<small class="rart" style="color:${RARITY[g.rar][1]}">★ ${RARITY[g.rar][0]}${g.from ? ' · von ' + g.from : ''}</small>` : '';
+      const canUp = (g.atk || g.def) && g.slot !== 'clothes' && g.slot !== 'amulet';
+      const sellV = g.rar != null ? Math.round(g.price * 0.3) : 0;
+      h = `<div class="pe" style="--c:${g.rar != null ? RARITY[g.rar][1] : g.color}">${g.e}</div><b>${esc(gName(g))}</b>${rar}<small>${slotLabel(g.slot)}${g.cls ? ' · nur ' + CLASSES[g.cls].name : ''}</small><small>${gearStatText(g)}</small>${g.desc ? `<small>${g.desc}</small>` : ''}${cmp}
+        ${popItem.up && canUp ? upgradeBox(g) : ''}
+        <div class="pbtns">${worn ? `<button class="alt" data-off="${g.slot}">${g.slot === 'clothes' ? 'Ablegen → Standardkleidung' : 'Ablegen'}</button>` : `<button data-on="${id}">Anlegen</button>`}
+        ${canUp && !popItem.up ? `<button class="upb" data-upopen="${id}">⬆️ Verbessern</button>` : ''}
+        ${sellV && !worn && !popItem.up ? `<button class="alt" data-sellx="${id}">${CIM} ${sellV}</button>` : ''}</div>`;
+    } else if (popItem.box) {
+      const b = BOXES[popItem.box], n = S.bag[popItem.box] || 0, rr = RARITY_RATE[b.tier];
+      h = `<div class="pe" style="--c:${b.color}">${b.e}</div><b>${b.name} × ${n}</b><small>Beute von ${b.from}. Darin steckt ein zufälliger Ausrüstungsgegenstand mit Bonuswerten.</small>
+        <small>${RARITY.map((r, i) => `<span style="color:${r[1]};font-weight:800">${r[0]} ${rr[i]} %</span>`).join(' · ')}</small>
+        <div class="pbtns"><button data-openbox="${popItem.box}" ${n ? '' : 'disabled'}>🎁 Öffnen</button></div>`;
     } else if (popItem.cons) {
       const c = CONS[popItem.cons], n = S.bag[popItem.cons] || 0;
       h = `<div class="pe" style="--c:${c.color}">${c.e}</div><b>${c.name} × ${n}</b><small>Heilt ${c.heal} Lebenspunkte. Tipp: Im Kampf den 🧪-Knopf links nutzen!</small><div class="pbtns"><button data-use="${popItem.cons}" ${n ? '' : 'disabled'}>Benutzen</button></div>`;
@@ -1442,7 +1630,7 @@
   $('charBtn').addEventListener('click', () => openInv('char'));
   $('lvlbox').addEventListener('click', () => openInv('char'));
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; curShop = null; popItem = null; }));
-  ['inv', 'shop', 'travel', 'chat'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) { $(id).hidden = true; curShop = null; popItem = null; } }));
+  ['inv', 'shop', 'travel', 'chat', 'dungeon'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) { $(id).hidden = true; curShop = null; popItem = null; } }));
   $('invTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { tab = b.dataset.tab; popItem = null; renderInv(); } });
   $('itemPop').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -1450,6 +1638,11 @@
     if (b.dataset.on) { if (equip(b.dataset.on)) { toast('✔ ' + GEAR[b.dataset.on].name + ' angelegt'); vibrate(15); checkAch(); } popItem = null; }
     if (b.dataset.off) { const slot = b.dataset.off; unequip(slot); toast(slot === 'clothes' ? '👕 Wieder in Standardkleidung' : slotLabel(slot) + ' abgelegt'); popItem = null; }
     if (b.dataset.use) { usePotion(b.dataset.use); if (!S.bag[b.dataset.use]) popItem = null; }
+    if (b.dataset.upopen) { popItem = { id: b.dataset.upopen, up: true }; renderItemPop(); return; }
+    if (b.dataset.upgo) { doUpgrade(b.dataset.upgo); popItem = { id: b.dataset.upgo, up: true }; }
+    if (b.dataset.upback) { popItem = { id: b.dataset.upback }; renderItemPop(); return; }
+    if (b.dataset.sellx) { sellGenerated(b.dataset.sellx); popItem = null; }
+    if (b.dataset.openbox) { openBox(b.dataset.openbox); popItem = S.bag[b.dataset.openbox] ? { box: b.dataset.openbox } : null; }
     save(); updateHud(); renderInv();
   });
   $('invBody').addEventListener('click', e => {
@@ -1458,6 +1651,7 @@
     if (b.dataset.tooltab) { tab = 'tools'; renderInv(); return; }
     if (b.dataset.slot) { popItem = { slot: b.dataset.slot }; renderItemPop(); return; }
     if (b.dataset.item) { popItem = CONS[b.dataset.item] ? { cons: b.dataset.item } : { id: b.dataset.item }; renderItemPop(); return; }
+    if (b.dataset.box) { popItem = { box: b.dataset.box }; renderItemPop(); return; }
     if (b.dataset.raw) { popItem = { raw: b.dataset.raw }; renderItemPop(); return; }
     if (b.dataset.stat && S.points > 0) {
       const oldMax = derived().hpMax;
@@ -1669,7 +1863,7 @@
     if (k === 'c') { $('chatBtn').click(); e.preventDefault(); }
     if (k === '+' || k === '=') setZoom(zoomR * 0.9);
     if (k === '-') setZoom(zoomR * 1.1);
-    if (k === 'escape') ['inv', 'shop', 'travel', 'chat'].forEach(id => { $(id).hidden = true; });
+    if (k === 'escape') ['inv', 'shop', 'travel', 'chat', 'dungeon', 'boxOpen'].forEach(id => { $(id).hidden = true; });
     if (k === 'p') $('pvpBtn').click();
   });
   window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'e') actionHeld = false; });
@@ -1686,7 +1880,22 @@
     skorpion:    { name: 'Riesenskorpion', tier: 3, hp: 290, dmg: 26, spd: 4.0, xp: 88,  aggro: 9,  size: 1.25, look: 'scorpion', fur: '#3a2618', belly: '#6a4a2a', drop: 'sting' },
     kobra:       { name: 'Kobra',          tier: 3, hp: 210, dmg: 33, spd: 4.8, xp: 78,  aggro: 10, size: 1.0,  look: 'snake',    fur: '#b8952a', belly: '#e8d47a', drop: 'venom' },
     steinbock:   { name: 'Steinbock',      tier: 4, hp: 420, dmg: 36, spd: 4.8, xp: 135, aggro: 9,  size: 1.15, look: 'goat',     fur: '#8a7a68', belly: '#c9bca8', drop: 'horn' },
-    hoehlenbaer: { name: 'Höhlenbär',      tier: 4, hp: 720, dmg: 50, spd: 3.8, xp: 230, aggro: 9,  size: 1.2,  look: 'bear',     fur: '#4a3226', belly: '#6a4a36', drop: 'claw' }
+    hoehlenbaer: { name: 'Höhlenbär',      tier: 4, hp: 720, dmg: 50, spd: 3.8, xp: 230, aggro: 9,  size: 1.2,  look: 'bear',     fur: '#4a3226', belly: '#6a4a36', drop: 'claw' },
+    // Bosse (nur in Dungeons)
+    boss1: { name: 'Keilerkönig Grunzbart', tier: 1, boss: 1, hp: 1500, dmg: 16, spd: 4.4, xp: 350,  aggro: 13, size: 3.0, look: 'boar',     fur: '#3a2416', belly: '#6a4430', drop: 'tusk' },
+    boss2: { name: 'Frostbär Ymir',         tier: 2, boss: 2, hp: 4200, dmg: 34, spd: 4.2, xp: 900,  aggro: 14, size: 2.6, look: 'bear',     fur: '#e6f6ff', belly: '#9fd8ff', drop: 'bear' },
+    boss3: { name: 'Glutskorpion Ignis',    tier: 3, boss: 3, hp: 9500, dmg: 58, spd: 4.6, xp: 2200, aggro: 15, size: 3.2, look: 'scorpion', fur: '#a8281a', belly: '#ff7a2a', drop: 'sting' }
+  };
+  // ---------- Die drei Dungeons ----------
+  // Räume liegen hintereinander: Eingang (sicher) → 2 Hallen mit Wachen → Boss-Halle
+  const DUN_ROOMS = [{ x: 0, z: -62, r: 9 }, { x: 7, z: -34, r: 11 }, { x: -6, z: -6, r: 11 }, { x: 0, z: 28, r: 15 }];
+  const DUNGEONS = {
+    d1: { name: 'Wurzelhöhle', e: '🍄', lv: 5, boss: 'boss1', box: 'box1', desc: 'Eine feuchte Höhle voller Wurzeln. Hier haust der riesige Keilerkönig.',
+      guards: [['fuchs', 4], ['eber', 4]], buff: 2.2, floor: '#3d3024', wall: '#5a4634', fog: '#140e09', glow: '#7dff8a', torch: '#ffb050', card: 'linear-gradient(135deg,#5a7a3a,#2e3a1e)' },
+    d2: { name: 'Frostgruft', e: '❄️', lv: 10, boss: 'boss2', box: 'box2', desc: 'Eisige Gänge aus blauem Kristall. Frostbär Ymir bewacht sie.',
+      guards: [['eiswolf', 5], ['eisbaer', 3]], buff: 1.8, floor: '#8fa6bd', wall: '#5f7d99', fog: '#0a1626', glow: '#8fe8ff', torch: '#7fdcff', card: 'linear-gradient(135deg,#5f8fc0,#1f3a5a)' },
+    d3: { name: 'Glutschlund', e: '🔥', lv: 15, boss: 'boss3', box: 'box3', desc: 'Glühende Lava und heiße Asche. Im Kern lauert Glutskorpion Ignis.',
+      guards: [['skorpion', 4], ['kobra', 3], ['hoehlenbaer', 2]], buff: 1.6, floor: '#3a1c14', wall: '#4a2a22', fog: '#1e0705', glow: '#ff6a1a', torch: '#ff7a2a', card: 'linear-gradient(135deg,#c0451a,#3a0e06)' }
   };
   const LAND_ANIMALS = { gruen: [['hase', 5], ['fuchs', 5], ['eber', 5]], eis: [['eiswolf', 8], ['eisbaer', 5]], wueste: [['skorpion', 7], ['kobra', 7]], berg: [['steinbock', 7], ['hoehlenbaer', 5]] };
   const TIER_LOOT = {
@@ -1855,6 +2064,7 @@
     const crit = !opts.noCrit && Math.random() < (cls() === 'spy' ? 0.25 : 0.1);
     let v = Math.max(1, Math.round(dmg * (crit ? 1.8 : 1)));
     m.hp -= v; m.hurtT = 0.25; curMob = m; combatT = 5;
+    if (m.A.boss && inDungeon) Net.send(landTopic(), { k: 'bhit', dmg: v });   // Gruppe teilt sich die Boss-Lebenspunkte
     const head = new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + m.src.barY * m.scale, m.z);
     popText(`<span style="color:${opts.color || (crit ? '#ffd23f' : '#ffffff')};font-size:${crit ? 24 : 19}px">${crit ? '💥' : ''}${v}</span>`, head);
     burst(m.x, heightAt(m.x, m.z) + 0.8 * m.scale, m.z, m.A.fur, crit ? 8 : 4);
@@ -1875,6 +2085,8 @@
     if (curMob === m) curMob = null;
     S.stats.kills = (S.stats.kills || 0) + 1;
     S.stats['m_' + m.type] = (S.stats['m_' + m.type] || 0) + 1;
+    if (m.dun) m.respawnAt = Infinity;              // im Dungeon kommt nichts wieder
+    if (m.A.boss) { bossLoot(m); return; }
     const A = m.A, Lt = TIER_LOOT[A.tier], at = new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + 2, m.z);
     // Gruppen-Bonus: +20 % Erfahrung, wenn ein Gruppenmitglied in der Nähe ist
     const pb = partyNear();
@@ -1920,6 +2132,7 @@
     hero.position.set(-2.5, 0, -6); facing = 0; hero.rotation.y = 0;
     mobs.forEach(m => { if (m.alive && m.state === 'chase') m.state = 'wander'; });
     $('death').hidden = true; updateHud(); save();
+    if (inDungeon) leaveDungeon();
   });
 
   // ---------- Heiltränke ----------
@@ -2017,7 +2230,7 @@
   const mobBar = $('mobBar');
   const updateMobBar = () => {
     const m = curMob;
-    if (!m || !m.alive || Math.hypot(m.x - hero.position.x, m.z - hero.position.z) > 20) { mobBar.hidden = true; return; }
+    if (!m || !m.alive || m.A.boss || Math.hypot(m.x - hero.position.x, m.z - hero.position.z) > 20) { mobBar.hidden = true; return; }
     const p = toScreen(new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + m.src.barY * m.scale + 0.3, m.z));
     if (p.z < 0 || p.z > 1) { mobBar.hidden = true; return; }
     mobBar.hidden = false;
@@ -2045,7 +2258,7 @@
       else s.m.position.addInPlaceFromFloats(dx / dd * step, dy / dd * step, dz / dd * step);
     }
     if (paused || deadUntil) return;
-    const hx = hero.position.x, hz = hero.position.z, safe = Math.hypot(hx, hz) < 15 || invisT > 0;
+    const hx = hero.position.x, hz = hero.position.z, safe = safeAt(hx, hz) || invisT > 0;
     for (const m of mobs) {
       const A = m.A;
       if (!m.alive) {
@@ -2062,14 +2275,15 @@
       let mvx = 0, mvz = 0, sp = 0;
       if (m.frozenT > 0) m.frozenT -= dt;
       else {
-        if (A.passive) {
+        if (A.boss && bossBusy(m, dt, d)) { /* Boss holt zum Stampfer aus */ }
+        else if (A.passive) {
           if (d < 6 || (m.state === 'flee' && d < 16)) { m.state = 'flee'; mvx = -dx / d; mvz = -dz / d; sp = A.spd; }
           else m.state = 'wander';
         } else if (!safe && (d < A.aggro || (m.state === 'chase' && d < A.aggro * 2.5))) {
           m.state = 'chase';
           const reach = 1.1 + m.r + 0.3;
-          if (d > reach) { mvx = dx / d; mvz = dz / d; sp = A.spd * 0.85; }
-          else { m.face = Math.atan2(dx, dz); if (m.atkT <= 0) { m.atkT = 1.6; m.lunge = 0.3; hurtPlayer(A.dmg, m); } }
+          if (d > reach) { mvx = dx / d; mvz = dz / d; sp = A.spd * 0.85 * (m.enraged ? 1.3 : 1); }
+          else { m.face = Math.atan2(dx, dz); if (m.atkT <= 0) { m.atkT = m.enraged ? 1.1 : 1.6; m.lunge = 0.3; hurtPlayer(A.dmg, m); } }
         } else if (m.state === 'chase') { m.state = 'wander'; m.tx = m.home.x; m.tz = m.home.z; }
         if (m.state === 'wander') {
           const tdx = m.tx - m.x, tdz = m.tz - m.z, td = Math.hypot(tdx, tdz);
@@ -2080,7 +2294,8 @@
       if (sp > 0) {
         let nx = m.x + mvx * sp * dt, nz = m.z + mvz * sp * dt;
         const dc = Math.hypot(nx, nz);
-        if (dc < 16) { nx = nx / dc * 16; nz = nz / dc * 16; if (m.state === 'wander') { m.tx = m.home.x; m.tz = m.home.z; } }
+        if (inDungeon) { if (!walkable(nx, nz) || safeAt(nx, nz)) { nx = m.x; nz = m.z; if (m.state === 'wander') { m.tx = m.home.x; m.tz = m.home.z; } } }
+        else if (dc < 16) { nx = nx / dc * 16; nz = nz / dc * 16; if (m.state === 'wander') { m.tx = m.home.x; m.tz = m.home.z; } }
         if (dc > WORLD - 2) { nx *= (WORLD - 2) / dc; nz *= (WORLD - 2) / dc; }
         m.x = nx; m.z = nz;
         const want = Math.atan2(mvx, mvz);
@@ -2116,7 +2331,7 @@
   const SAFE_R = 15, PARTY_MAX = 4;
   const sStr = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
   const sNum = (v, lo, hi) => { v = +v; return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo; };
-  const landTopic = () => 'land-' + S.land;
+  const landTopic = () => inDungeon ? 'dun-' + inDungeon.id + '-' + inDungeon.inst : 'land-' + S.land;
   const RP = {};                // andere Spieler im selben Land: id -> Daten + Figur
   let online = {};              // alle Spieler online: id -> { n, c, lv, land, t }
   let party = null;             // { id, lead, mem: { id: { n, c, lv } } }
@@ -2171,7 +2386,7 @@
   const sendPresence = ask => {
     if (!S.hero) return;
     lastPr = performance.now();
-    Net.send('welt', { k: 'pr', n: S.hero.name, c: S.hero.cls, lv: S.level, land: S.land, ask: ask ? 1 : 0 });
+    Net.send('welt', { k: 'pr', n: S.hero.name, c: S.hero.cls, lv: S.level, land: S.land, dun: inDungeon ? inDungeon.id : '', ask: ask ? 1 : 0 });
   };
   const sendState = force => {
     if (!S.hero || !hero || creating) return;
@@ -2195,7 +2410,7 @@
       case 'bye': removeRemote(id); break;
       case 'pr': {
         const isNew = !online[id];
-        online[id] = { n, c, lv: sNum(p.lv, 1, 999) | 0, land: LANDS[p.land] ? p.land : 'gruen', t: now };
+        online[id] = { n, c, lv: sNum(p.lv, 1, 999) | 0, land: LANDS[p.land] ? p.land : 'gruen', dun: DUNGEONS[p.dun] ? p.dun : '', t: now };
         if (p.ask && now - lastPr > 1500) setTimeout(() => sendPresence(false), 200 + Math.random() * 800);
         if (isNew) netUi();
         break;
@@ -2219,6 +2434,15 @@
       case 'gleave': if (party && party.lead === MY_ID && p.gid === party.id && party.mem[id]) { delete party.mem[id]; toast('👥 ' + esc(n) + ' hat die Gruppe verlassen.'); sendParty(); } break;
       case 'gdis': if (party && p.gid === party.id && party.lead === id) { party = null; toast('👥 Die Gruppe wurde aufgelöst.'); netUi(); } break;
       case 'hit': if (p.to === MY_ID && topic === landTopic()) gotHit(id, p); break;
+      case 'bhit': if (topic === landTopic()) remoteBossHit(p); break;
+      case 'dgo': {
+        const did = sStr(p.did, 4);
+        if (party && p.gid === party.id && party.mem[id] && DUNGEONS[did] && !(inDungeon && inDungeon.inst === party.id)) {
+          const D = DUNGEONS[did], gid = party.id;
+          showPrompt(`🕳️ <b>${esc(n)}</b> geht in ${D.e} ${D.name}. Kommst du mit?`, 'Mitkommen', () => enterDungeon(did, gid));
+        }
+        break;
+      }
       case 'kill': if (p.to === MY_ID) gotKill(id, n); break;
     }
   };
@@ -2393,21 +2617,23 @@
   const gotInvite = (id, n, gid) => {
     if (!gid) return;
     if (party) { Net.send('welt', { k: 'gno', to: id, n: S.hero ? S.hero.name : '' }); return; }
-    pendingInvite = { id, n, gid };
-    $('gInvTxt').innerHTML = '👥 <b>' + esc(n) + '</b> lädt dich in eine Gruppe ein';
-    $('gInvite').hidden = false; vibrate([30, 30, 30]);
-    clearTimeout(gotInvite.t); gotInvite.t = setTimeout(() => { $('gInvite').hidden = true; pendingInvite = null; }, 20000);
+    showPrompt('👥 <b>' + esc(n) + '</b> lädt dich in eine Gruppe ein', 'Annehmen', () => {
+      if (party || !S.hero) return;
+      Net.send('welt', { k: 'gacc', to: id, n: S.hero.name, c: S.hero.cls, lv: S.level, gid });
+      toast('Warte auf ' + esc(n) + ' …');
+    }, () => Net.send('welt', { k: 'gno', to: id, n: S.hero ? S.hero.name : '' }));
   };
-  $('gInvYes').addEventListener('click', () => {
-    const iv = pendingInvite; $('gInvite').hidden = true; pendingInvite = null;
-    if (!iv || party || !S.hero) return;
-    Net.send('welt', { k: 'gacc', to: iv.id, n: S.hero.name, c: S.hero.cls, lv: S.level, gid: iv.gid });
-    toast('Warte auf ' + esc(iv.n) + ' …');
-  });
-  $('gInvNo').addEventListener('click', () => {
-    const iv = pendingInvite; $('gInvite').hidden = true; pendingInvite = null;
-    if (iv) Net.send('welt', { k: 'gno', to: iv.id, n: S.hero ? S.hero.name : '' });
-  });
+  // Kleine Frage-Karte oben (Einladung, Dungeon mitkommen …)
+  let promptYes = null, promptNo = null, promptT = 0;
+  function showPrompt(html, yesLabel, onYes, onNo) {
+    if (promptNo) promptNo();
+    promptYes = onYes; promptNo = onNo || null;
+    $('gInvTxt').innerHTML = html; $('gInvYes').textContent = yesLabel;
+    $('gInvite').hidden = false; vibrate([30, 30, 30]);
+    clearTimeout(promptT); promptT = setTimeout(() => { $('gInvite').hidden = true; promptYes = promptNo = null; }, 20000);
+  }
+  $('gInvYes').addEventListener('click', () => { const f = promptYes; $('gInvite').hidden = true; promptYes = promptNo = null; if (f) f(); });
+  $('gInvNo').addEventListener('click', () => { const f = promptNo; $('gInvite').hidden = true; promptYes = promptNo = null; if (f) f(); });
   const gotAccept = (id, n, c, lv, gid) => {
     if (!S.hero) return;
     if (!party) newParty(gid);
@@ -2469,7 +2695,8 @@
       if (inParty(id)) btn = '<span class="tag">✔ Gruppe</span>';
       else if (party && party.lead !== MY_ID) btn = '';
       else btn = `<button data-invite="${esc(id)}">Einladen</button>`;
-      return `<div class="row"><div class="e">${CLASSES[o.c].e}</div><div class="t"><b>${esc(o.n)}</b><small>Level ${o.lv} · ${l.e} ${l.name}</small></div>${btn}</div>`;
+      const where = o.dun ? DUNGEONS[o.dun].e + ' ' + DUNGEONS[o.dun].name : l.e + ' ' + l.name;
+      return `<div class="row"><div class="e">${CLASSES[o.c].e}</div><div class="t"><b>${esc(o.n)}</b><small>Level ${o.lv} · ${where}</small></div>${btn}</div>`;
     }).join('');
     return h;
   };
@@ -2492,13 +2719,14 @@
     } else $('party').hidden = true;
     if (!$('chat').hidden) renderChat();
   };
-  const netLandChanged = oldLand => {
-    Net.send('land-' + oldLand, { k: 'bye' });
-    Net.leave('land-' + oldLand);
+  const netTopicChanged = oldTopic => {
+    Net.send(oldTopic, { k: 'bye' });
+    Net.leave(oldTopic);
     clearRemotes();
     Net.join(landTopic());
     sendPresence(false);
   };
+  const netLandChanged = oldLand => netTopicChanged('land-' + oldLand);
 
   // Jedes Bild: senden, aufräumen
   const updateNet = (dt, now) => {
@@ -2527,6 +2755,256 @@
   window.addEventListener('pagehide', () => { Net.send(landTopic(), { k: 'bye' }); });
 
   // =====================================================================
+  // Dungeons & Bosse
+  // =====================================================================
+  const R0 = DUN_ROOMS[0], RB = DUN_ROOMS[DUN_ROOMS.length - 1];
+  const segDist = (px, pz, ax, az, bx, bz) => {
+    const vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((px - ax) * vx + (pz - az) * vz) / (vx * vx + vz * vz)));
+    return Math.hypot(px - ax - vx * t, pz - az - vz * t);
+  };
+  const CORR = [0, 1, 2].map(i => [DUN_ROOMS[i], DUN_ROOMS[i + 1]]);
+  const walkable = (x, z) => DUN_ROOMS.some(r => Math.hypot(x - r.x, z - r.z) < r.r - 0.7) || CORR.some(([a, b]) => segDist(x, z, a.x, a.z, b.x, b.z) < 2.2);
+  function safeAt(x, z) { return inDungeon ? Math.hypot(x - R0.x, z - R0.z) < R0.r + 1 : Math.hypot(x, z) < 15; }
+
+  const makeMob = (type, A, x, z) => {
+    const src = mobSrc[type] || (mobSrc[type] = buildAnimalSrc(type));
+    const sc = A.size * (A.boss ? 1 : rnd(0.9, 1.1));
+    const root = TN('mob_' + type); root.scaling.setAll(sc);
+    const b = src.body.createInstance('mb'); b.parent = root; b.isPickable = false;
+    const mk = (s, zz) => { if (!s) return null; const p = TN('leg', root); p.position.set(0, src.legY, zz); const l = s.createInstance('ml'); l.parent = p; l.isPickable = false; return p; };
+    const m = { type, A, src, root, legF: mk(src.legF, src.zF), legB: mk(src.legB, src.zB), scale: sc, maxHp: A.hp, r: src.r * sc, walkT: Math.random() * 6, face: Math.PI + rnd(-0.5, 0.5) };
+    m.shadow = addBlob(0, 0, 0, 1.6 * sc * (A.look === 'bear' ? 1.4 : 1));
+    m.x = x; m.z = z; m.home = { x, z }; m.dun = true;
+    resetMob(m); mobs.push(m);
+    return m;
+  };
+
+  function buildDungeon(did) {
+    const D = DUNGEONS[did];
+    landStuff.forEach(o => { if (!o.isDisposed()) o.dispose(false, false); });
+    landMats.forEach(m => m.dispose(true, true));
+    landStuff = []; landMats = [];
+    if (snow) { snow.dispose(); snow = null; }
+    L = { name: D.name, e: D.e, amp: 0, ponds: [], frozen: true, dungeon: true };
+    nodes = []; solids = []; npcs = []; holes = []; holeIdx = 0; PONDS = []; SHOPS = []; portal = null; dgate = null; pondMat = null;
+    mobs = []; mobSrc = {}; curMob = null; boss = null;
+    const m0 = new Set(scene.meshes), t0 = new Set(scene.transformNodes);
+
+    sky.isVisible = false;
+    scene.fogColor = C3(D.fog); scene.clearColor = BABYLON.Color4.FromColor3(C3(D.fog), 1);
+    scene.fogStart = 16; scene.fogEnd = 58;
+    hemi.intensity = 0.9; hemi.groundColor = C3(D.fog).scale(4); sun.intensity = 0.6; sun.diffuse = C3(D.torch);
+    ip.exposure = 1.45;
+
+    let seed = 11 + did.charCodeAt(1) * 77;
+    const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    // Boden: Räume + Gänge
+    const under = MB.CreateGround('dunder', { width: 220, height: 220 }, scene); under.position.y = -0.25; under.material = smat(D.fog, 0); under.isPickable = false;
+    const F = [];
+    DUN_ROOMS.forEach(r => F.push(part('cyl', { diameter: r.r * 2 + 1, height: 0.2, tessellation: 40 }, D.floor, r.x, -0.1, r.z)));
+    CORR.forEach(([a, b]) => {
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
+      F.push(part('box', { width: 5.6, height: 0.2, depth: len }, D.floor, (a.x + b.x) / 2, -0.11, (a.z + b.z) / 2, null, [0, Math.atan2(dx, dz), 0]));
+    });
+    // Flecken auf dem Boden
+    for (let i = 0; i < 70; i++) {
+      const r = DUN_ROOMS[Math.floor(rand() * 4)], a = rand() * 6.28, d = rand() * (r.r - 1.5);
+      F.push(part('cyl', { diameter: 0.6 + rand() * 1.6, height: 0.02, tessellation: 7 }, i % 2 ? D.wall : D.fog, r.x + Math.cos(a) * d, 0.01, r.z + Math.sin(a) * d));
+    }
+    group('dfloor', F).freezeWorldMatrix();
+    // Wände aus Felsen
+    const wallS = MB.CreateIcoSphere('dwallS', { radius: 1, subdivisions: 1 }, scene);
+    wallS.material = smat(D.wall, 0.08); wallS.isVisible = false; wallS.isPickable = false;
+    const wall = (x, z) => {
+      const w = wallS.createInstance('dw'), s = 1.3 + rand() * 0.9;
+      w.position.set(x, 0.6, z); w.scaling.set(s, 2.2 + rand() * 1.8, s); w.rotation.set(rand() * 0.4, rand() * 6, rand() * 0.3);
+      w.isPickable = false; w.freezeWorldMatrix();
+    };
+    DUN_ROOMS.forEach(r => {
+      const n = Math.round(r.r * 2.9);
+      for (let i = 0; i < n; i++) {
+        const a = i / n * Math.PI * 2, x = r.x + Math.cos(a) * (r.r + 1), z = r.z + Math.sin(a) * (r.r + 1);
+        if (CORR.some(([p, q]) => segDist(x, z, p.x, p.z, q.x, q.z) < 3.4)) continue;
+        wall(x, z);
+      }
+    });
+    CORR.forEach(([a, b]) => {
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz), nx = -dz / len, nz = dx / len;
+      for (let t = 0; t <= len; t += 2.3) [-1, 1].forEach(s => {
+        const x = a.x + dx * t / len + nx * 3.6 * s, z = a.z + dz * t / len + nz * 3.6 * s;
+        if (DUN_ROOMS.some(r => Math.hypot(x - r.x, z - r.z) < r.r + 0.6)) return;
+        wall(x, z);
+      });
+    });
+    // Leuchtende Kristalle / Pilze / Glut
+    const glowS = MB.CreatePolyhedron('dglowS', { type: 1, size: 0.32 }, scene);
+    glowS.material = smat(D.glow, 0.4, 0.9); glowS.isVisible = false; glowS.isPickable = false;
+    DUN_ROOMS.forEach(r => {
+      for (let i = 0; i < 9; i++) {
+        const a = rand() * 6.28, d = r.r - 0.8 - rand() * 1.2, g = glowS.createInstance('dg'), s = 0.6 + rand();
+        g.position.set(r.x + Math.cos(a) * d, 0.2, r.z + Math.sin(a) * d); g.scaling.set(s, s * (1.5 + rand() * 2), s); g.rotation.set(rand() * 0.6, rand() * 6, rand() * 0.6);
+        g.isPickable = false; g.freezeWorldMatrix();
+      }
+    });
+    // Fackeln
+    const TP = [], TF = [];
+    DUN_ROOMS.forEach(r => [0.6, 2.2, 3.8, 5.4].forEach(a0 => {
+      const a = a0 + 0.3, x = r.x + Math.cos(a) * (r.r - 0.4), z = r.z + Math.sin(a) * (r.r - 0.4);
+      if (CORR.some(([p, q]) => segDist(x, z, p.x, p.z, q.x, q.z) < 3.4)) return;
+      TP.push(part('cyl', { diameter: 0.16, height: 2.2, tessellation: 6 }, '#3a2618', x, 1.1, z));
+      TF.push(part('sph', { diameter: 0.42, segments: 6 }, D.torch, x, 2.35, z, [1, 1.4, 1]));
+    }));
+    if (TP.length) { group('dtorchP', TP).freezeWorldMatrix(); group('dtorchF', TF, null, smat(D.torch, 0, 1.2)).freezeWorldMatrix(); }
+    // Boss-Halle: Runenkreis
+    dunGlow = group('drunes', [part('tor', { diameter: (RB.r - 2.5) * 2, thickness: 0.18, tessellation: 56 }, null, RB.x, 0.05, RB.z),
+      part('tor', { diameter: 6, thickness: 0.14, tessellation: 32 }, null, RB.x, 0.05, RB.z)], null, smat(D.glow, 0, 0.8));
+    // Ausgang im Eingangsraum
+    {
+      const ex = R0.x - 5.6, ez = R0.z - 2.5, P = [];
+      P.push(part('tor', { diameter: 3.0, thickness: 0.35, tessellation: 28 }, '#8a8aa0', 0, 1.7, 0, [1, 1.3, 1], [Math.PI / 2, 0, 0]));
+      P.push(part('cyl', { diameter: 3.4, height: 0.15, tessellation: 24 }, '#5a5a6a', 0, 0.07, 0));
+      const node = TN('dexit'); node.position.set(ex, 0, ez); node.rotation.y = Math.PI / 2 - 0.4;
+      group('dexitM', P, node);
+      const disc = MB.CreateDisc('dexitD', { radius: 1.35, tessellation: 28 }, scene);
+      disc.parent = node; disc.position.y = 1.7; disc.scaling.y = 1.3; disc.material = smat('#7fd0ff', 0, 1, 0.7); disc.isPickable = false;
+      const sign = makeSign('dexit', '🚪 Ausgang', '#1f3a5a'); sign.parent = node; sign.position.set(0, 3.9, 0); sign.scaling.setAll(0.75);
+      dExit = { x: ex + 1.4, z: ez, disc };
+    }
+    // Warnkreis für den Boss-Stampfer
+    slamRing = MB.CreateDisc('slam', { radius: 1, tessellation: 40 }, scene);
+    slamRing.rotation.x = Math.PI / 2; slamRing.material = smat('#ff2a2a', 0, 1, 0.55); slamRing.isVisible = false; slamRing.isPickable = false;
+
+    // Wachen in Halle 1 + 2, Boss in der letzten Halle
+    let gi = 0;
+    D.guards.forEach(([type, count]) => {
+      const B = ANIMALS[type];
+      const A = Object.assign({}, B, { name: B.name + ' (Wache)', hp: Math.round(B.hp * D.buff), dmg: Math.round(B.dmg * 1.25), xp: Math.round(B.xp * 1.5), aggro: B.aggro + 2 });
+      for (let i = 0; i < count; i++) {
+        const r = DUN_ROOMS[1 + (gi++ % 2)], a = rand() * 6.28, d = 2 + rand() * (r.r - 4);
+        makeMob(type, A, r.x + Math.cos(a) * d, r.z + Math.sin(a) * d);
+      }
+    });
+    boss = makeMob(D.boss, ANIMALS[D.boss], RB.x, RB.z + 4);
+    boss.face = Math.PI; boss.maxHp = boss.hp = ANIMALS[D.boss].hp;
+
+    scene.meshes.forEach(m => { if (!m0.has(m)) landStuff.push(m); });
+    scene.transformNodes.forEach(t => { if (!t0.has(t)) landStuff.push(t); });
+    $('landPill').textContent = '📍 ' + D.e + ' ' + D.name;
+  }
+
+  // ---------- Boss: Stampfer mit Warnkreis, Wut-Modus ----------
+  const bossBusy = (m, dt, d) => {
+    if (!slamRing) return false;
+    const s = m.slam || (m.slam = { cd: 5, t: 0 });
+    if (!m.scaled && m.state === 'chase') {
+      // Mehr Leben, wenn mehrere Spieler im Dungeon sind
+      const n = Object.keys(RP).length;
+      if (n) { const lost = m.maxHp - m.hp; m.maxHp = Math.round(m.A.hp * (1 + 0.6 * n)); m.hp = m.maxHp - lost; }
+      m.scaled = true;
+    }
+    if (!m.enraged && m.hp < m.maxHp * 0.35) { m.enraged = true; toast('😡 ' + m.A.name + ' wird wütend – schneller und stärker!', true); vibrate([60, 40, 60]); }
+    if (s.t > 0) {
+      s.t -= dt;
+      const k = 1 - Math.max(0, s.t) / s.dur;
+      slamRing.position.set(s.x, 0.09, s.z); slamRing.scaling.set(s.r * (0.3 + 0.7 * k), s.r * (0.3 + 0.7 * k), 1); slamRing.visibility = 0.4 + 0.5 * k;
+      m.face = Math.atan2(hero.position.x - m.x, hero.position.z - m.z);
+      if (s.t <= 0) {
+        slamRing.isVisible = false; m.lunge = 0.3;
+        burst(s.x, 0.6, s.z, m.A.fur, 22); burst(s.x, 0.4, s.z, '#ffffff', 10); vibrate(60);
+        if (Math.hypot(hero.position.x - s.x, hero.position.z - s.z) < s.r) hurtPlayer(m.A.dmg * 1.8, m);
+        s.cd = m.enraged ? 3.5 : 6;
+      }
+      return true;
+    }
+    if (m.state === 'chase' && d < 12) {
+      s.cd -= dt;
+      if (s.cd <= 0) { s.dur = s.t = m.enraged ? 0.9 : 1.25; s.x = m.x; s.z = m.z; s.r = 4.5 + m.A.tier; slamRing.isVisible = true; return true; }
+    }
+    return false;
+  };
+  const bossLoot = m => {
+    const A = m.A, t = A.boss, at = new BABYLON.Vector3(m.x, 3.5, m.z);
+    S.stats['boss' + t] = (S.stats['boss' + t] || 0) + 1;
+    addXp(A.xp);
+    const cim = Math.round(rnd(...[[90, 160], [240, 400], [550, 900]][t - 1]));
+    S.money += cim; S.stats.looted = (S.stats.looted || 0) + cim;
+    setTimeout(() => popText('+' + cim + ' ' + CIM, at), 200);
+    const nb = 1 + (Math.random() < 0.3 ? 1 : 0), bid = 'box' + t;
+    S.bag[bid] = (S.bag[bid] || 0) + nb;
+    setTimeout(() => popText('+' + nb + ' 🎁', at), 600);
+    give('soul', t * 2 + Math.floor(Math.random() * 3), at, 1000);
+    const pot = ['potion', 'potion2', 'potion3'][t - 1]; S.bag[pot] = (S.bag[pot] || 0) + 2;
+    if (slamRing) slamRing.isVisible = false;
+    burst(m.x, 1.5, m.z, '#ffd23f', 30); confetti(); vibrate([60, 40, 60, 40, 120]);
+    setTimeout(() => toast(`🏆 ${A.name} besiegt! Du bekommst ${nb}× ${BOXES[bid].e} ${BOXES[bid].name} – öffne sie im 🎒`, true), 400);
+    bump('money'); bump('bag'); updateHud(); updatePotBtn(); checkAch(); save();
+  };
+  const updateBossBar = () => {
+    const bb = $('bossBar');
+    const show = inDungeon && boss && boss.alive && hero && Math.hypot(hero.position.x - RB.x, hero.position.z - RB.z) < RB.r + 8;
+    if (!show) { if (!bb.hidden) bb.hidden = true; return; }
+    bb.hidden = false;
+    $('bossName').textContent = (boss.enraged ? '😡 ' : '👑 ') + boss.A.name;
+    $('bossFill').style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
+    $('bossHp').textContent = Math.max(0, Math.ceil(boss.hp)) + ' / ' + boss.maxHp;
+  };
+  const remoteBossHit = p => {
+    if (!inDungeon || !boss || !boss.alive) return;
+    const v = sNum(p.dmg, 0, 6000);
+    boss.hp -= v; boss.hurtT = 0.2; if (boss.state !== 'chase') boss.state = 'chase';
+    if (boss.hp <= 0) killMob(boss);
+  };
+
+  // ---------- Betreten / Verlassen ----------
+  const openDungeons = () => { $('dungeon').hidden = false; renderDungeons(); };
+  const renderDungeons = () => {
+    const n = party ? Object.keys(party.mem).length : 1;
+    $('dungeonBody').innerHTML = (party ? `<div class="pbox">👥 Du gehst mit deiner Gruppe (${n} Spieler). Die anderen werden gefragt, ob sie mitkommen. Der Boss hat dann mehr Leben – aber jeder bekommt seine eigene Beute!</div>`
+      : '<div class="empty" style="padding:0 0 8px">Du gehst allein. Mit Freunden geht es leichter: über 💬 → Spieler in eine Gruppe einladen.</div>') +
+      Object.keys(DUNGEONS).map(id => {
+        const D = DUNGEONS[id], A = ANIMALS[D.boss], B = BOXES[D.box], low = S.level < D.lv;
+        return `<div class="land" style="background:${D.card}"><div class="e">${D.e}</div><div class="t"><b>${D.name}</b><small>${D.desc}</small><small>👑 Boss: ${A.name} · ${B.e} ${B.name}</small><small><b style="display:inline;font-size:12px">empfohlen ab Level ${D.lv}</b>${low ? ' · ⚠️ noch sehr gefährlich für dich' : ''}</small></div><button data-dgo="${id}">${party ? '👥 Los' : 'Betreten'}</button></div>`;
+      }).join('');
+  };
+  $('dungeonBody').addEventListener('click', e => {
+    const b = e.target.closest('[data-dgo]'); if (!b || !S.hero) return;
+    const did = b.dataset.dgo;
+    if (party) Net.send('welt', { k: 'dgo', gid: party.id, did, n: S.hero.name });
+    enterDungeon(did, party ? party.id : MY_ID);
+  });
+  const enterDungeon = (did, inst) => {
+    const D = DUNGEONS[did]; if (!D || deadUntil) return;
+    const oldTopic = landTopic();
+    ['dungeon', 'chat', 'inv'].forEach(id => { $(id).hidden = true; });
+    const f = $('fade'); $('fadeTxt').textContent = '🕳️ ' + D.e + ' ' + D.name + ' …'; f.classList.add('on');
+    vibrate([30, 60, 30]);
+    setTimeout(() => {
+      inDungeon = { id: did, inst: String(inst || MY_ID).slice(0, 30) };
+      $('hint').style.opacity = '0';
+      buildDungeon(did);
+      hero.position.set(R0.x, 0, R0.z - 2); facing = 0; hero.rotation.y = 0;
+      cam.alpha = -Math.PI / 2; camTarget.set(hero.position.x, 2, hero.position.z);
+      netTopicChanged(oldTopic);
+      updateHud(); save();
+      setTimeout(() => { f.classList.remove('on'); toast(`${D.e} ${D.name}: Kämpf dich durch die Wachen – der Boss wartet am Ende!`, true); }, 400);
+    }, 700);
+  };
+  const leaveDungeon = () => {
+    if (!inDungeon) return;
+    const oldTopic = landTopic();
+    const f = $('fade'); $('fadeTxt').textContent = '🚪 Zurück zum Marktplatz …'; f.classList.add('on');
+    setTimeout(() => {
+      inDungeon = null;
+      buildLand(S.land);
+      hero.position.set(-5.5, 0, -4); facing = Math.PI * 0.75; hero.rotation.y = facing;
+      camTarget.set(hero.position.x, 2, hero.position.z);
+      netTopicChanged(oldTopic);
+      $('bossBar').hidden = true; updateHud(); save();
+      setTimeout(() => f.classList.remove('on'), 350);
+    }, 600);
+  };
+
+  // =====================================================================
   // Querformat
   // =====================================================================
   let triedLandscape = false;
@@ -2549,7 +3027,7 @@
     if (d2 < min * min && d2 > 0.0001) { const d = Math.sqrt(d2); p.x = o.x + dx / d * min; p.z = o.z + dz / d * min; }
   };
   const np = { x: 0, z: 0 };
-  const overlays = ['inv', 'shop', 'travel', 'chat', 'death'];
+  const overlays = ['inv', 'shop', 'travel', 'chat', 'death', 'dungeon', 'boxOpen'];
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
@@ -2576,6 +3054,12 @@
       for (const o of nodes) if (o.alive && Math.abs(o.x - np.x) < 3 && Math.abs(o.z - np.z) < 3) pushOut(np, o);
       for (const o of solids) if (Math.abs(o.x - np.x) < 3 && Math.abs(o.z - np.z) < 3) pushOut(np, o);
       for (const m of mobs) if (m.alive && Math.abs(m.x - np.x) < 3 && Math.abs(m.z - np.z) < 3) pushOut(np, { x: m.x, z: m.z, r: m.r * 0.8 });
+      // Im Dungeon: an den Wänden entlang rutschen
+      if (inDungeon && !walkable(np.x, np.z) && walkable(hero.position.x, hero.position.z)) {
+        if (walkable(np.x, hero.position.z)) np.z = hero.position.z;
+        else if (walkable(hero.position.x, np.z)) np.x = hero.position.x;
+        else { np.x = hero.position.x; np.z = hero.position.z; }
+      }
       const dc = Math.hypot(np.x, np.z);
       if (dc > WORLD) { np.x *= WORLD / dc; np.z *= WORLD / dc; }
       hero.position.x = np.x; hero.position.z = np.z;
@@ -2680,6 +3164,8 @@
     updateCombat(dt, now, uiOpen);
     updateNet(dt, now);
     updatePlayerBar();
+    updateBossBar();
+    if (dExit && dExit.disc) dExit.disc.rotation.z += dt * 0.8;
     regenTimer += dt;
     if (regenTimer > 1) { regenTimer = 0; S.played = (S.played || 0) + 1; if (S.hp < d.hpMax && S.hp > 0 && combatT <= 0) { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.02); updateHud(); } }
     uiTimer -= dt;
@@ -2705,6 +3191,8 @@
   cam.radius = zoomR;
   if (!S.hero) { previewCreate(); openCreate(); }
   Net.start();
+  // Nur zum Testen auf dem eigenen PC
+  if (location.hostname === 'localhost') window.__cim = { S, enterDungeon, leaveDungeon, openBox, genItem, getBoss: () => boss, getHero: () => hero, killBoss: () => boss && killMob(boss), renderInv, openInv };
   engine.runRenderLoop(() => scene.render());
   window.addEventListener('resize', () => { engine.resize(); if (joyId === null) homeStick(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
