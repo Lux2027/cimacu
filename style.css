@@ -249,3 +249,35 @@ body.creating #hud, body.creating #landPill, body.creating #hint, body.creating 
 .vals { grid-template-columns: repeat(3, 1fr); }
 .row .t small { display: block; }
 .row .t b small { display: inline; }
+
+/* ===== Kampf ===== */
+#act.fight { background: radial-gradient(circle at 35% 30%, #ff8a7a, #d02a2a); }
+#act.fight #actRing circle { stroke: #ffd23f; }
+#toolBadge { bottom: calc(196px + env(safe-area-inset-bottom)); right: calc(24px + env(safe-area-inset-right)); width: 50px; height: 50px; font-size: 25px; }
+#potBtn { position: fixed; left: 16px; top: calc(150px + env(safe-area-inset-top)); width: 52px; height: 52px; border-radius: 16px; border: 2px solid #ff8ab8; background: rgba(60,20,50,.65); font-size: 26px; padding: 0; box-shadow: 0 0 10px rgba(255,80,150,.4); }
+#potBtn[hidden] { display: none; }
+#potBtn b { position: absolute; right: -6px; bottom: -6px; background: #ff3b6b; color: #fff; font-size: 12px; border-radius: 10px; padding: 1px 6px; border: 2px solid #fff; }
+#potBtn:active { transform: scale(.92); }
+#abilities .ab { position: fixed; width: 54px; height: 54px; border-radius: 50%; border: 3px solid rgba(255,255,255,.85); background: radial-gradient(circle at 35% 30%, #8a6aff, #3b1f8a); font-size: 26px; padding: 0; box-shadow: 0 4px 12px rgba(0,0,0,.35); overflow: hidden; }
+#abilities .ab span { position: relative; z-index: 1; }
+#abilities .ab i { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(10,10,30,.72) var(--cd, 0deg), transparent 0); }
+#abilities .ab.cool span { opacity: .6; }
+#abilities .ab:active { transform: scale(.92); }
+#abilities .ab0 { right: calc(118px + env(safe-area-inset-right)); bottom: calc(44px + env(safe-area-inset-bottom)); }
+#abilities .ab1 { right: calc(100px + env(safe-area-inset-right)); bottom: calc(108px + env(safe-area-inset-bottom)); }
+#abilities .ab2 { right: calc(48px + env(safe-area-inset-right)); bottom: calc(132px + env(safe-area-inset-bottom)); }
+#mobBar { position: fixed; transform: translate(-50%, -100%); pointer-events: none; text-align: center; min-width: 110px; }
+#mobBar[hidden] { display: none; }
+#mobBar b { display: inline-flex; align-items: center; gap: 5px; color: #fff; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,.8); white-space: nowrap; }
+#mobBar b span { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; border-radius: 8px; font-size: 11px; color: #fff; text-shadow: none; }
+#mobBar .mb { height: 7px; margin-top: 3px; background: rgba(0,0,0,.55); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,.5); }
+#mobBar .mb i { display: block; height: 100%; background: linear-gradient(90deg, #ff4d5e, #ff9a5c); }
+#hurt { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 90px rgba(255,0,0,.75); opacity: 0; }
+#hurt.on { animation: hurt .45s ease-out; }
+@keyframes hurt { 0% { opacity: 1; } 100% { opacity: 0; } }
+#death { align-items: center; justify-content: center; background: rgba(20,0,10,.75); z-index: 26; }
+.deathCard { background: #f6f3ec; border-radius: 22px; padding: 22px; width: 82%; max-width: 340px; text-align: center; color: #2b2b35; animation: up .3s ease-out; }
+.deathCard .skull { font-size: 54px; }
+.deathCard h2 { margin: 4px 0 8px; }
+.deathCard p { font-size: 14px; color: #6a6458; margin: 0 0 16px; }
+body.creating #potBtn, body.creating #abilities, body.creating #mobBar { display: none !important; }

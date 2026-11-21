@@ -28,9 +28,18 @@
   const ITEMS = {
     wood: ['Holz', '🪵'], stone: ['Stein', '🪨'], dirt: ['Erde', '🟫'], water: ['Wasser', '💧'],
     iron: ['Eisen', '🔩'], gold: ['Golderz', '🟡'], crystal: ['Kristall', '💎'],
-    ice: ['Eiskristall', '🧊'], cactus: ['Kaktusfrucht', '🌵'], silver: ['Silbererz', '🥈']
+    ice: ['Eiskristall', '🧊'], cactus: ['Kaktusfrucht', '🌵'], silver: ['Silbererz', '🥈'],
+    fur: ['Tierfell', '🦊'], tusk: ['Eberzahn', '🦷'], wolf: ['Wolfspelz', '🐺'], bear: ['Eisbärfell', '🐻'],
+    sting: ['Skorpionstachel', '🦂'], venom: ['Schlangengift', '🐍'], horn: ['Steinbockhorn', '🐐'], claw: ['Bärenklaue', '🐾']
   };
-  const SELL = { wood: 2, stone: 2, dirt: 1, water: 1, iron: 6, gold: 15, crystal: 40, ice: 30, cactus: 10, silver: 25 };
+  const SELL = { wood: 2, stone: 2, dirt: 1, water: 1, iron: 6, gold: 15, crystal: 40, ice: 30, cactus: 10, silver: 25,
+    fur: 6, tusk: 10, wolf: 20, bear: 40, sting: 55, venom: 50, horn: 85, claw: 120 };
+  // Heiltränke in drei Größen
+  const CONS = {
+    potion: { name: 'Kleiner Heiltrank', e: '🧪', heal: 50, color: '#ff6fb5' },
+    potion2: { name: 'Heiltrank', e: '🧪', heal: 130, color: '#ff3b6b' },
+    potion3: { name: 'Großer Heiltrank', e: '⚗️', heal: 320, color: '#c22b4f' }
+  };
   const TOOLS = { axe: '🪓', pick: '⛏️', shovel: '🪏', bucket: '🪣' };
   const TOOL_ORDER = ['axe', 'pick', 'shovel', 'bucket'];
   const TOOL_NAMES = {
@@ -125,7 +134,9 @@
   const skillLevel = xp => Math.min(20, Math.floor(Math.sqrt((xp || 0) / 4)) + 1);
   const skillXpFor = l => (l - 1) * (l - 1) * 4;
   const GOODS = {
-    potion: { name: 'Heiltrank', e: '🧪', price: 15, desc: 'Heilt 50 Lebenspunkte' },
+    potion: { name: 'Kleiner Heiltrank', e: '🧪', price: 15, desc: 'Heilt 50 Lebenspunkte' },
+    potion2: { name: 'Heiltrank', e: '🧪', price: 45, desc: 'Heilt 130 Lebenspunkte' },
+    potion3: { name: 'Großer Heiltrank', e: '⚗️', price: 120, desc: 'Heilt 320 Lebenspunkte' },
     bwood: { name: '5 Holz', e: '🪵', price: 15, give: ['wood', 5], desc: 'Ein Bündel Holz' },
     bstone: { name: '5 Stein', e: '🪨', price: 15, give: ['stone', 5], desc: 'Eine Kiste Steine' },
     biron: { name: '3 Eisen', e: '🔩', price: 40, give: ['iron', 3], desc: 'Drei Eisenbarren' }
@@ -198,6 +209,12 @@
     { id: 'travelall', e: '🌍', name: 'Weltenbummler', desc: 'Besuche alle vier Länder', test: s => Object.keys(s.visited || {}).length >= 4 },
     { id: 'dress', e: '👗', name: 'Modebewusst', desc: 'Trage neue Kleidung', test: s => !!s.gear.clothes },
     { id: 'skill5', e: '🎓', name: 'Fachkraft', desc: 'Bringe eine Sammel-Fähigkeit auf Stufe 5', test: s => Object.values(s.skills || {}).some(x => skillLevel(x) >= 5) },
+    { id: 'hunt1', e: '🏹', name: 'Erste Jagd', desc: 'Besiege dein erstes Tier', test: s => (s.stats.kills || 0) >= 1 },
+    { id: 'hunt50', e: '🐾', name: 'Großwildjäger', desc: 'Besiege 50 Tiere', test: s => (s.stats.kills || 0) >= 50 },
+    { id: 'polar', e: '❄️', name: 'Eisbärbezwinger', desc: 'Besiege einen Eisbären (Stufe 2)', test: s => (s.stats.m_eisbaer || 0) >= 1 },
+    { id: 'scorp', e: '🦂', name: 'Wüstenkrieger', desc: 'Besiege einen Riesenskorpion (Stufe 3)', test: s => (s.stats.m_skorpion || 0) >= 1 },
+    { id: 'cave', e: '🐻', name: 'Bärenstark', desc: 'Besiege einen Höhlenbären (Stufe 4)', test: s => (s.stats.m_hoehlenbaer || 0) >= 1 },
+    { id: 'loot1', e: '✨', name: 'Glückspilz', desc: 'Finde seltene Beute bei einem Tier', test: s => (s.stats.loot || 0) >= 1 },
     { id: 'ice1', e: '🧊', name: 'Eisbrecher', desc: 'Baue einen Eiskristall ab', test: s => (s.stats.ice || 0) >= 1 },
     { id: 'silver1', e: '🥈', name: 'Silberader', desc: 'Baue Silbererz ab', test: s => (s.stats.silver || 0) >= 1 },
     { id: 'rich', e: '💰', name: 'Wohlhabend', desc: 'Verdiene insgesamt 1000 Cim', test: s => (s.stats.earned || 0) >= 1000 },
@@ -220,6 +237,8 @@
   } catch (e) { }
   S.gear = Object.assign({ weapon: null, shield: null, helmet: null, armor: null, clothes: null, boots: null, amulet: null }, S.gear);
   S.skills = S.skills || {};
+  S.bag = S.bag || {};
+  if (S.potions) { S.bag.potion = (S.bag.potion || 0) + S.potions; S.potions = 0; }
   // Alte Spielstände: Sprintstiefel & Glücksamulett werden zu echten Ausrüstungsteilen
   if (S.perks && S.perks.boots) { S.owned.b2 = true; if (!S.gear.boots) S.gear.boots = 'b2'; delete S.perks.boots; }
   if (S.perks && S.perks.amulet) { S.owned.j1 = true; if (!S.gear.amulet) S.gear.amulet = 'j1'; delete S.perks.amulet; }
@@ -679,6 +698,9 @@
       snow.start();
     }
 
+    // Tiere dieses Landes
+    spawnAnimals(id);
+
     // Alles Neue merken (zum späteren Entfernen)
     scene.meshes.forEach(m => { if (!m0.has(m)) landStuff.push(m); });
     scene.transformNodes.forEach(t => { if (!t0.has(t)) landStuff.push(t); });
@@ -998,6 +1020,7 @@
   let facing = 0;
   const findTarget = () => {
     const hx = hero.position.x, hz = hero.position.z;
+    const mob = mobInReach(); if (mob) return { kind: 'mob', mob };
     if (portal && Math.hypot(portal.front.x - hx, portal.front.z - hz) < 2.6) return { kind: 'portal' };
     if (portal && Math.hypot(portal.back.x - hx, portal.back.z - hz) < 2.0) return { kind: 'portal' };
     for (const s of SHOPS) if (Math.hypot(s.front.x - hx, s.front.z - hz) < 2.4) return { kind: 'shop', shop: s };
@@ -1020,14 +1043,22 @@
     return null;
   };
 
-  let swingT = -1, swingTarget = null, hitDone = false, actionHeld = false;
+  let swingT = -1, swingTarget = null, hitDone = false, actionHeld = false, holdKind = null;
   const swingDur = () => 0.5 / derived().swing;
   const startSwing = () => {
     if (swingT >= 0 || !S.hero) return;
     const tgt = findTarget();
+    // Beim Gedrückthalten nur dieselbe Art weitermachen (nach dem Kampf nicht plötzlich graben)
+    const kindNow = tgt ? (tgt.kind === 'mob' ? 'mob' : 'other') : null;
+    if (holdKind && kindNow !== holdKind) { actionHeld = false; holdKind = null; return; }
+    holdKind = actionHeld ? kindNow : null;
     if (!tgt) { toast('Hier gibt es nichts abzubauen. Geh in die Natur, zu einem Händler oder zum Reisetor.'); actionHeld = false; return; }
     if (tgt.kind === 'shop') { actionHeld = false; openShop(tgt.shop); return; }
     if (tgt.kind === 'portal') { actionHeld = false; openTravel(); return; }
+    if (tgt.kind === 'mob') {
+      facing = Math.atan2(tgt.mob.x - hero.position.x, tgt.mob.z - hero.position.z); hero.rotation.y = facing;
+      combatT = 5; swingT = 0; swingTarget = tgt; hitDone = false; return;
+    }
     const k = KINDS[tgt.kind];
     setTool(k.tool);
     if (k.tier && S.tools[k.tool] < k.tier) { toast('💪 Zu hart! Du brauchst eine ' + TOOL_NAMES[k.tool][k.tier - 1] + ' (🎒 → Bauen)'); actionHeld = false; return; }
@@ -1043,6 +1074,7 @@
     if (after > before) { const s = SKILLS.find(x => x[0] === sk); setTimeout(() => { toast(s[1] + ' ' + s[2] + ' ist jetzt Stufe ' + after + '!', true); vibrate([30, 30, 30]); }, 600); }
   };
   const hit = tgt => {
+    if (tgt.kind === 'mob') { attackHit(tgt.mob, tgt.mult || 1, tgt.ability); return; }
     const k = KINDS[tgt.kind], tier = S.tools[k.tool];
     trainSkill(tgt.kind, 1);
     if (tgt.node) {
@@ -1081,7 +1113,7 @@
   // Aktions-Knopf
   // =====================================================================
   const act = $('act');
-  act.addEventListener('pointerdown', e => { e.preventDefault(); actionHeld = true; startSwing(); $('hint').style.opacity = '0'; });
+  act.addEventListener('pointerdown', e => { e.preventDefault(); actionHeld = true; holdKind = null; startSwing(); $('hint').style.opacity = '0'; });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => act.addEventListener(ev, () => { actionHeld = false; }));
   act.addEventListener('contextmenu', e => e.preventDefault());
   $('toolBadge').addEventListener('click', () => { tab = 'tools'; $('inv').hidden = false; renderInv(); });
@@ -1093,6 +1125,7 @@
     if (!tgt) { key = 'none'; icon = '✋'; label = 'Nichts hier'; }
     else if (tgt.kind === 'shop') { key = 'shop' + tgt.shop.id; icon = '🛒'; label = 'Handeln'; }
     else if (tgt.kind === 'portal') { key = 'portal'; icon = '🧭'; label = 'Reisen'; }
+    else if (tgt.kind === 'mob') { const w = S.gear.weapon && GEAR[S.gear.weapon]; key = 'mob' + (w ? w.e : ''); icon = w ? w.e : '👊'; label = 'Angreifen'; }
     else {
       const k = KINDS[tgt.kind];
       if (swingT < 0) setTool(k.tool);
@@ -1104,8 +1137,10 @@
       $('actIcon').textContent = icon; $('actLabel').textContent = label;
       act.classList.toggle('off', !tgt);
       act.classList.toggle('shop', !!tgt && (tgt.kind === 'shop' || tgt.kind === 'portal'));
+      act.classList.toggle('fight', !!tgt && tgt.kind === 'mob');
     }
-    ring.style.strokeDashoffset = tgt && tgt.node ? 289 * Math.max(0, tgt.node.hp / KINDS[tgt.kind].hp) : 289;
+    ring.style.strokeDashoffset = tgt && tgt.node ? 289 * Math.max(0, tgt.node.hp / KINDS[tgt.kind].hp)
+      : tgt && tgt.mob ? 289 * (1 - Math.max(0, tgt.mob.hp / tgt.mob.maxHp)) : 289;
   };
 
   // =====================================================================
@@ -1120,7 +1155,7 @@
   };
   const LAND_CLOTH = { gruen: 'c6', eis: 'c3', wueste: 'c4', berg: 'c5' };
   const shopGoods = s => s.goods === 'weapons' ? Object.keys(GEAR).filter(k => GEAR[k].cls === cls())
-    : s.goods === 'general' ? ['potion', 'c1', 'c2', LAND_CLOTH[S.land], 'j1', 'j2', 'j3', 'bwood', 'bstone', 'biron'] : s.goods;
+    : s.goods === 'general' ? ['potion', 'potion2', 'potion3', 'c1', 'c2', LAND_CLOTH[S.land], 'j1', 'j2', 'j3', 'bwood', 'bstone', 'biron'] : s.goods;
   const renderShop = () => {
     const s = curShop; if (!s) return;
     $('shopTitle').textContent = s.sign.split(' ')[0] + ' ' + s.name + ' · ' + s.title;
@@ -1143,7 +1178,7 @@
           return `<div class="row"><div class="e">${g.e}<i style="background:${g.color}"></i></div><div class="t"><b>${g.name}</b><small>${fmtStat(g)}${cmp}</small></div>${btn}</div>`;
         }
         const btn = o.perk && S.perks[id] ? '<span class="tag">✔ Gekauft</span>' : `<button data-buy="${id}" ${S.money >= o.price ? '' : 'disabled'}>${CIM} ${o.price}</button>`;
-        const extra = id === 'potion' ? ` · Du hast ${S.potions || 0}` : '';
+        const extra = CONS[id] ? ` · Du hast ${S.bag[id] || 0}` : '';
         return `<div class="row"><div class="e">${o.e}</div><div class="t"><b>${o.name}</b><small>${o.desc}${extra}</small></div>${btn}</div>`;
       }).join('');
     } else {
@@ -1172,7 +1207,7 @@
       if (g) { S.owned[id] = true; S.gear[g.slot] = id; applyGear(); toast('✨ ' + g.name + ' gekauft und angelegt!', true); }
       else if (o.perk) { S.perks[id] = true; applyGear(); toast('✨ ' + o.name + ' gekauft! ' + o.desc, true); }
       else if (o.give) { S.inv[o.give[0]] = (S.inv[o.give[0]] || 0) + o.give[1]; toast(o.e + ' ' + o.name + ' gekauft'); }
-      else if (id === 'potion') { S.potions = (S.potions || 0) + 1; toast('🧪 Heiltrank gekauft'); }
+      else if (CONS[id]) { S.bag[id] = (S.bag[id] || 0) + 1; toast(CONS[id].e + ' ' + CONS[id].name + ' gekauft'); updatePotBtn(); }
       vibrate([20, 30, 40]);
       burst(hero.position.x, hero.position.y + 2, hero.position.z, '#ffd23f', 10);
     } else if (b.dataset.equipGear) {
@@ -1197,7 +1232,7 @@
     $('travelBody').innerHTML = LAND_ORDER.map(id => {
       const l = LANDS[id], here = id === S.land;
       const btn = here ? '<span class="here">📍 Du bist hier</span>' : `<button data-go="${id}" ${S.money >= TRAVEL_COST ? '' : 'disabled'}>${CIM} ${TRAVEL_COST}</button>`;
-      return `<div class="land" style="background:${l.card}"><div class="e">${l.e}</div><div class="t"><b>${l.name}${S.visited && S.visited[id] ? '' : ' ✨ neu'}</b><small>${l.desc}</small><small>Besonders: ${l.special}</small></div>${btn}</div>`;
+      return `<div class="land" style="background:${l.card}"><div class="e">${l.e}</div><div class="t"><b>${l.name}${S.visited && S.visited[id] ? '' : ' ✨ neu'}</b><small>${l.desc}</small><small>Besonders: ${l.special}</small><small>⚔️ Tiere Stufe ${LAND_ORDER.indexOf(id) + 1}: ${LAND_ANIMALS[id].map(([t]) => ANIMALS[t].name).join(', ')} · <b style="display:inline;font-size:12px">empfohlen ab Level ${[1, 5, 10, 15][LAND_ORDER.indexOf(id)]}</b></small></div>${btn}</div>`;
     }).join('') + (S.money < TRAVEL_COST ? `<div class="empty">Dir fehlen noch ${TRAVEL_COST - S.money} Cim. Verkaufe Rohstoffe bei der Gemischtwaren-Händlerin!</div>` : '');
   };
   $('travelBody').addEventListener('click', e => {
@@ -1286,7 +1321,7 @@
       const worn = S.gear[g.slot] === id;
       cells.push(`<button class="icell${worn ? ' worn' : ''}" data-item="${id}" style="--c:${g.color}"><span class="ie">${g.e}</span><span class="in">${g.name}</span>${worn ? '<span class="ok">✔</span>' : ''}</button>`);
     });
-    if ((invCat === 'all' || invCat === 'items') && S.potions) cells.push(`<button class="icell" data-item="potion" style="--c:#e94fb0"><span class="ie">🧪</span><span class="in">Heiltrank</span><span class="cnt">${S.potions}</span></button>`);
+    if (invCat === 'all' || invCat === 'items') Object.keys(CONS).forEach(id => { if (S.bag[id]) cells.push(`<button class="icell" data-item="${id}" style="--c:${CONS[id].color}"><span class="ie">${CONS[id].e}</span><span class="in">${CONS[id].name}</span><span class="cnt">${S.bag[id]}</span></button>`); });
     if (invCat === 'all' || invCat === 'raw') Object.keys(ITEMS).forEach(i => { if (S.inv[i] > 0) cells.push(`<button class="icell raw" data-raw="${i}"><span class="ie">${ITEMS[i][1]}</span><span class="in">${ITEMS[i][0]}</span><span class="cnt">${S.inv[i]}</span></button>`); });
     h += cells.length ? `<div class="igrid">${cells.join('')}</div>` : '<div class="empty">Hier ist noch nichts. Sammle Rohstoffe oder kaufe etwas bei den Händlern!</div>';
     return h;
@@ -1311,9 +1346,9 @@
       <div><b>⚡ ${pct(d.speed - 1)}</b>Lauftempo</div><div><b>⛏️ ${pct(d.power - 1)}</b>Abbau-Kraft</div><div><b>🔁 ${pct(d.swing - 1)}</b>Schlagtempo</div>
       <div><b>📚 ${pct(d.xpBonus)}</b>XP-Bonus</div><div><b>💰 ${pct(d.sellBonus)}</b>Preise</div><div><b>🍀 ${Math.round(d.luck * 100)} %</b>Glück</div></div>
       <div class="empty" style="padding:2px 0 0;font-size:12px">Klassen-Bonus: ${c.bonus}</div>`;
-    h += '<h4>Fähigkeiten</h4>' + ABILITIES[cls()].map(([lv, e, name, desc]) => {
-      const ok = S.level >= lv;
-      return `<div class="row${ok ? '' : ' locked'}"><div class="e">${ok ? e : '🔒'}</div><div class="t"><b>${name}</b><small>${desc}</small><small>${ok ? '✔ Gelernt – einsetzbar, sobald es Kämpfe gibt' : 'Wird mit Level ' + lv + ' gelernt'}</small></div></div>`;
+    h += '<h4>Fähigkeiten</h4>' + ABILITIES[cls()].map(([lv, e, name, desc], i) => {
+      const ok = S.level >= lv, cd = AB[cls()][i][2];
+      return `<div class="row${ok ? '' : ' locked'}"><div class="e">${ok ? e : '🔒'}</div><div class="t"><b>${name}</b><small>${desc}</small><small>${ok ? '✔ Gelernt – Knopf unten rechts · Abklingzeit ' + cd + ' s' : 'Wird mit Level ' + lv + ' gelernt'}</small></div></div>`;
     }).join('');
     h += '<h4>Sammel-Fähigkeiten</h4>' + SKILLS.map(([k, e, name]) => {
       const xp = S.skills[k] || 0, lv = skillLevel(xp), a = skillXpFor(lv), b = skillXpFor(lv + 1);
@@ -1323,7 +1358,8 @@
     const mined = ['rock', 'iron', 'ice', 'silver', 'gold', 'crystal'].reduce((a, k) => a + (S.stats['k_' + k] || 0), 0);
     h += `<h4>Abenteuer</h4><div class="vals">
       <div><b>🌍 ${Object.keys(S.visited || {}).length}/4</b>Länder</div><div><b>🏆 ${ACH.filter(a => S.ach[a.id]).length}/${ACH.length}</b>Erfolge</div><div><b>${CIM} ${S.stats.earned || 0}</b>Verdient</div>
-      <div><b>🌲 ${(S.stats.k_tree || 0) + (S.stats.k_cactus || 0)}</b>Gefällt</div><div><b>⛏️ ${mined}</b>Abgebaut</div><div><b>⏱️ ${played}</b>Minuten</div></div>`;
+      <div><b>🌲 ${(S.stats.k_tree || 0) + (S.stats.k_cactus || 0)}</b>Gefällt</div><div><b>⛏️ ${mined}</b>Abgebaut</div><div><b>⏱️ ${played}</b>Minuten</div>
+      <div><b>🐾 ${S.stats.kills || 0}</b>Tiere besiegt</div><div><b>✨ ${S.stats.loot || 0}</b>Seltene Beute</div><div><b>${CIM} ${S.stats.looted || 0}</b>Erbeutet</div></div>`;
     return h;
   };
 
@@ -1344,8 +1380,9 @@
       if (!worn && cur) { const dv = (g.atk || g.def || 0) - (cur.atk || cur.def || 0); if (dv) cmp = `<small class="${dv > 0 ? 'up' : 'down'}">${dv > 0 ? '▲ +' : '▼ '}${dv} gegenüber ${cur.name}</small>`; }
       h = `<div class="pe" style="--c:${g.color}">${g.e}</div><b>${g.name}</b><small>${slotLabel(g.slot)}${g.cls ? ' · nur ' + CLASSES[g.cls].name : ''}</small><small>${gearStatText(g)}</small>${g.desc ? `<small>${g.desc}</small>` : ''}${cmp}
         <div class="pbtns">${worn ? `<button class="alt" data-off="${g.slot}">${g.slot === 'clothes' ? 'Ablegen → Standardkleidung' : 'Ablegen'}</button>` : `<button data-on="${id}">Anlegen</button>`}</div>`;
-    } else if (popItem.potion) {
-      h = `<div class="pe">🧪</div><b>Heiltrank × ${S.potions}</b><small>Heilt 50 Lebenspunkte.</small><div class="pbtns"><button data-use="potion" ${S.potions ? '' : 'disabled'}>Benutzen</button></div>`;
+    } else if (popItem.cons) {
+      const c = CONS[popItem.cons], n = S.bag[popItem.cons] || 0;
+      h = `<div class="pe" style="--c:${c.color}">${c.e}</div><b>${c.name} × ${n}</b><small>Heilt ${c.heal} Lebenspunkte. Tipp: Im Kampf den 🧪-Knopf links nutzen!</small><div class="pbtns"><button data-use="${popItem.cons}" ${n ? '' : 'disabled'}>Benutzen</button></div>`;
     } else if (popItem.raw) {
       const i = popItem.raw;
       h = `<div class="pe">${ITEMS[i][1]}</div><b>${ITEMS[i][0]} × ${S.inv[i] || 0}</b><small>Rohstoff · Wert: ${CIM} ${sellPrice(i)} pro Stück</small><small>Verkaufen bei der Gemischtwaren-Händlerin, oder unter „Bauen“ für Werkzeuge nutzen.</small>`;
@@ -1395,12 +1432,7 @@
     if (b.dataset.pclose) { popItem = null; renderItemPop(); return; }
     if (b.dataset.on) { if (equip(b.dataset.on)) { toast('✔ ' + GEAR[b.dataset.on].name + ' angelegt'); vibrate(15); checkAch(); } popItem = null; }
     if (b.dataset.off) { const slot = b.dataset.off; unequip(slot); toast(slot === 'clothes' ? '👕 Wieder in Standardkleidung' : slotLabel(slot) + ' abgelegt'); popItem = null; }
-    if (b.dataset.use === 'potion') {
-      const d = derived();
-      if (S.hp >= d.hpMax) toast('❤ Du bist schon ganz gesund.');
-      else { S.potions--; S.hp = Math.min(d.hpMax, S.hp + 50); toast('🧪 +50 Leben'); burst(hero.position.x, hero.position.y + 2, hero.position.z, '#ff4fa3', 12); updateHud(); }
-      if (!S.potions) popItem = null;
-    }
+    if (b.dataset.use) { usePotion(b.dataset.use); if (!S.bag[b.dataset.use]) popItem = null; }
     save(); updateHud(); renderInv();
   });
   $('invBody').addEventListener('click', e => {
@@ -1408,7 +1440,7 @@
     if (b.dataset.cat) { invCat = b.dataset.cat; renderInv(); return; }
     if (b.dataset.tooltab) { tab = 'tools'; renderInv(); return; }
     if (b.dataset.slot) { popItem = { slot: b.dataset.slot }; renderItemPop(); return; }
-    if (b.dataset.item) { popItem = b.dataset.item === 'potion' ? { potion: true } : { id: b.dataset.item }; renderItemPop(); return; }
+    if (b.dataset.item) { popItem = CONS[b.dataset.item] ? { cons: b.dataset.item } : { id: b.dataset.item }; renderItemPop(); return; }
     if (b.dataset.raw) { popItem = { raw: b.dataset.raw }; renderItemPop(); return; }
     if (b.dataset.stat && S.points > 0) {
       const oldMax = derived().hpMax;
@@ -1564,7 +1596,7 @@
     const k = e.key.toLowerCase();
     keys[k] = true; hint.style.opacity = '0';
     if (creating) return;
-    if (k === ' ' || k === 'e') { actionHeld = true; startSwing(); }
+    if ((k === ' ' || k === 'e') && !e.repeat) { actionHeld = true; holdKind = null; startSwing(); }
     if (k === 'i') { if ($('inv').hidden) openInv('inv'); else $('inv').hidden = true; }
     if (k === 'k') { if ($('inv').hidden) openInv('char'); else $('inv').hidden = true; }
     if (k === 'c') { $('chatBtn').click(); e.preventDefault(); }
@@ -1572,6 +1604,432 @@
   });
   window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'e') actionHeld = false; });
 
+  // =====================================================================
+  // Tiere & Kampf
+  // =====================================================================
+  const ANIMALS = {
+    hase:        { name: 'Hase',           tier: 1, hp: 22,  dmg: 0,  spd: 6.0, xp: 6,   passive: true, size: 1.0,  look: 'rabbit',   fur: '#c8a27a', belly: '#f2e6d6', drop: 'fur' },
+    fuchs:       { name: 'Fuchs',          tier: 1, hp: 38,  dmg: 4,  spd: 4.6, xp: 11,  aggro: 6,  size: 1.0,  look: 'fox',      fur: '#d8742a', belly: '#f4f0ea', drop: 'fur' },
+    eber:        { name: 'Wildschwein',    tier: 1, hp: 65,  dmg: 7,  spd: 3.9, xp: 17,  aggro: 7,  size: 1.0,  look: 'boar',     fur: '#5a3f2e', belly: '#7a5a44', drop: 'tusk' },
+    eiswolf:     { name: 'Eiswolf',        tier: 2, hp: 125, dmg: 12, spd: 5.0, xp: 34,  aggro: 10, size: 1.05, look: 'wolf',     fur: '#cfdbe6', belly: '#f4f8fb', drop: 'wolf' },
+    eisbaer:     { name: 'Eisbär',         tier: 2, hp: 250, dmg: 20, spd: 3.6, xp: 62,  aggro: 8,  size: 1.0,  look: 'bear',     fur: '#f2f4f6', belly: '#e2e6ea', drop: 'bear' },
+    skorpion:    { name: 'Riesenskorpion', tier: 3, hp: 290, dmg: 26, spd: 4.0, xp: 88,  aggro: 9,  size: 1.25, look: 'scorpion', fur: '#3a2618', belly: '#6a4a2a', drop: 'sting' },
+    kobra:       { name: 'Kobra',          tier: 3, hp: 210, dmg: 33, spd: 4.8, xp: 78,  aggro: 10, size: 1.0,  look: 'snake',    fur: '#b8952a', belly: '#e8d47a', drop: 'venom' },
+    steinbock:   { name: 'Steinbock',      tier: 4, hp: 420, dmg: 36, spd: 4.8, xp: 135, aggro: 9,  size: 1.15, look: 'goat',     fur: '#8a7a68', belly: '#c9bca8', drop: 'horn' },
+    hoehlenbaer: { name: 'Höhlenbär',      tier: 4, hp: 720, dmg: 50, spd: 3.8, xp: 230, aggro: 9,  size: 1.2,  look: 'bear',     fur: '#4a3226', belly: '#6a4a36', drop: 'claw' }
+  };
+  const LAND_ANIMALS = { gruen: [['hase', 5], ['fuchs', 5], ['eber', 5]], eis: [['eiswolf', 8], ['eisbaer', 5]], wueste: [['skorpion', 7], ['kobra', 7]], berg: [['steinbock', 7], ['hoehlenbaer', 5]] };
+  const TIER_LOOT = {
+    1: { cim: [2, 6], pots: [['potion', 0.22]], gear: 0.06, pool: ['h1', 'a1', 's1', 'b1', 'CW1', 'CW2'] },
+    2: { cim: [8, 16], pots: [['potion', 0.25], ['potion2', 0.1]], gear: 0.08, pool: ['h2', 'a2', 's2', 'b2', 'c1', 'CW2', 'CW3'] },
+    3: { cim: [18, 32], pots: [['potion2', 0.3], ['potion3', 0.08]], gear: 0.1, pool: ['h2', 'a3', 's2', 'b2', 'j1', 'j2', 'CW3', 'CW4'] },
+    4: { cim: [35, 60], pots: [['potion2', 0.3], ['potion3', 0.2]], gear: 0.13, pool: ['h3', 'a3', 's3', 'b3', 'j1', 'j2', 'j3', 'CW4', 'CW5', 'a4'] }
+  };
+  const CW_PREFIX = { fighter: 'w', mage: 'm', spy: 'd' };
+  const TIER_COL = ['', '#7cc242', '#5fa8ff', '#ff9a2a', '#e04848'];
+  const AB = {
+    fighter: [['power', 3, 5], ['wall', 6, 15], ['whirl', 10, 10]],
+    mage: [['fireball', 3, 4], ['heal', 6, 20], ['frost', 10, 15]],
+    spy: [['poison', 3, 6], ['shadow', 6, 8], ['vanish', 10, 20]]
+  };
+  let mobs = [], mobSrc = {}, curMob = null, combatT = 0, wallT = 0, invisT = 0, deadUntil = 0;
+  const abCd = {};
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const reachOf = m => cls() === 'mage' ? 8 : 1.9 + m.r;
+
+  // ---------- Modelle der Tiere (je Art einmal gebaut, dann viele Kopien) ----------
+  const buildAnimalSrc = type => {
+    const A = ANIMALS[type], f = A.fur, bel = A.belly;
+    const P = [], LF = [], LB = [];
+    let legY = 0, zF = 0, zB = 0, anim = 'quad', barY = 1.6, r = 0.6;
+    const eyes = (y, z, x, s) => [-1, 1].forEach(sx => {
+      P.push(part('sph', { diameter: s, segments: 6 }, '#141414', x * sx, y, z));
+      P.push(part('sph', { diameter: s * 0.4, segments: 4 }, '#ffffff', x * sx + 0.015 * sx, y + s * 0.2, z + s * 0.35));
+    });
+    if (A.look === 'scorpion') {
+      P.push(part('sph', { diameter: 1 }, f, 0, 0.32, 0, [0.9, 0.36, 1.1]));
+      P.push(part('sph', { diameter: 1 }, bel, 0, 0.38, 0.05, [0.7, 0.22, 0.9]));
+      P.push(part('sph', { diameter: 1 }, f, 0, 0.33, 0.62, [0.55, 0.26, 0.4]));
+      eyes(0.44, 0.78, 0.09, 0.07);
+      [-1, 1].forEach(s => {
+        P.push(part('caps', { radius: 0.07, height: 0.6, tessellation: 8 }, f, 0.35 * s, 0.32, 0.85, null, [Math.PI / 2, 0.5 * s, 0]));
+        P.push(part('sph', { diameter: 0.34, segments: 8 }, bel, 0.52 * s, 0.34, 1.12, [1, 0.7, 1.3]));
+        P.push(part('cyl', { diameterTop: 0, diameterBottom: 0.1, height: 0.3, tessellation: 5 }, '#2a1a10', 0.47 * s, 0.34, 1.35, null, [Math.PI / 2, 0, 0]));
+      });
+      [[0, 0.42, -0.6, 0.3], [0, 0.66, -0.9, 0.27], [0, 1.0, -1.0, 0.24], [0, 1.3, -0.86, 0.21], [0, 1.45, -0.56, 0.19]].forEach(([x, y, z, d]) => P.push(part('sph', { diameter: d, segments: 8 }, f, x, y, z)));
+      P.push(part('cyl', { diameterTop: 0, diameterBottom: 0.14, height: 0.35, tessellation: 6 }, '#c0392b', 0, 1.38, -0.3, null, [2.2, 0, 0]));
+      [-1, 1].forEach(s => [0.35, 0.05, -0.25, -0.5].forEach(z => (s < 0 ? LF : LB).push(part('caps', { radius: 0.035, height: 0.7, tessellation: 6 }, '#2a1a10', 0.6 * s, 0.2, z, null, [0, 0, 1.1 * s]))));
+      anim = 'scuttle'; barY = 1.9; r = 0.9;
+    } else if (A.look === 'snake') {
+      P.push(part('tor', { diameter: 1.0, thickness: 0.24, tessellation: 18 }, f, 0, 0.12, -0.15));
+      P.push(part('tor', { diameter: 0.62, thickness: 0.22, tessellation: 16 }, bel, 0, 0.32, -0.15));
+      P.push(part('caps', { radius: 0.12, height: 1.1, tessellation: 10 }, f, 0, 0.78, 0.2, null, [-0.25, 0, 0]));
+      P.push(part('sph', { diameter: 1, segments: 12 }, f, 0, 1.22, 0.38, [0.42, 0.5, 0.1]));
+      P.push(part('sph', { diameter: 1, segments: 10 }, bel, 0, 1.2, 0.42, [0.28, 0.36, 0.06]));
+      P.push(part('sph', { diameter: 1, segments: 10 }, f, 0, 1.38, 0.5, [0.17, 0.12, 0.26]));
+      eyes(1.43, 0.6, 0.07, 0.06);
+      P.push(part('box', { width: 0.03, height: 0.01, depth: 0.16 }, '#d9304a', 0, 1.35, 0.68));
+      anim = 'sway'; barY = 2.0; r = 0.6;
+    } else {
+      const Q = {
+        rabbit: { b: [0.3, 0.27, 0.42], leg: 0.16, lr: 0.06, hr: 0.2, ear: 'long', tail: 'puff', snout: null },
+        fox: { b: [0.26, 0.26, 0.55], leg: 0.36, lr: 0.055, hr: 0.21, ear: 'pointy', tail: 'bushy', snout: [0.24, 0.08] },
+        boar: { b: [0.42, 0.4, 0.68], leg: 0.28, lr: 0.09, hr: 0.3, ear: 'pointy', tail: 'short', snout: [0.24, 0.13], tusks: true },
+        wolf: { b: [0.3, 0.3, 0.66], leg: 0.5, lr: 0.07, hr: 0.25, ear: 'pointy', tail: 'bushy', snout: [0.3, 0.09] },
+        bear: { b: [0.55, 0.52, 0.85], leg: 0.45, lr: 0.15, hr: 0.38, ear: 'round', tail: 'short', snout: [0.2, 0.15] },
+        goat: { b: [0.3, 0.33, 0.6], leg: 0.6, lr: 0.06, hr: 0.22, ear: 'small', tail: 'short', snout: [0.2, 0.09], horns: true, beard: true }
+      }[A.look];
+      const [bx, by, bz] = Q.b, cy = Q.leg + by * 0.75, hr = Q.hr;
+      const hy = A.look === 'rabbit' ? cy + by * 0.7 : cy + by * 0.45, hz = bz * 0.95 + (A.look === 'rabbit' ? 0 : hr * 0.4);
+      P.push(part('sph', { diameter: 2, segments: 14 }, f, 0, cy, 0, [bx, by, bz]));
+      P.push(part('sph', { diameter: 2, segments: 12 }, bel, 0, cy - by * 0.3, 0.05, [bx * 0.82, by * 0.68, bz * 0.85]));
+      P.push(part('sph', { diameter: 2 * hr, segments: 12 }, f, 0, hy, hz));
+      if (Q.snout) {
+        P.push(part('caps', { radius: Q.snout[1], height: Q.snout[0] + Q.snout[1] * 2, tessellation: 10 }, A.look === 'boar' ? '#c98a7a' : bel, 0, hy - hr * 0.25, hz + hr * 0.75, null, [Math.PI / 2, 0, 0]));
+        P.push(part('sph', { diameter: Q.snout[1] * 1.1, segments: 6 }, '#1a1a1a', 0, hy - hr * 0.2, hz + hr * 0.75 + Q.snout[0] / 2 + Q.snout[1]));
+      } else P.push(part('sph', { diameter: 0.06, segments: 5 }, '#e88a9a', 0, hy - 0.02, hz + hr * 0.98));
+      eyes(hy + hr * 0.18, hz + hr * 0.78, hr * 0.42, hr * 0.28);
+      [-1, 1].forEach(s => {
+        if (Q.ear === 'long') P.push(part('caps', { radius: hr * 0.22, height: hr * 2.6, tessellation: 8 }, f, hr * 0.32 * s, hy + hr * 1.35, hz - hr * 0.3, [1, 1, 0.55], [-0.2, 0, 0.18 * s]));
+        if (Q.ear === 'pointy') P.push(part('cyl', { diameterTop: 0, diameterBottom: hr * 0.75, height: hr * 0.85, tessellation: 4 }, f, hr * 0.5 * s, hy + hr * 0.95, hz - hr * 0.15, null, [0, 0, -0.3 * s]));
+        if (Q.ear === 'round') P.push(part('sph', { diameter: hr * 0.62, segments: 8 }, f, hr * 0.68 * s, hy + hr * 0.78, hz - hr * 0.1));
+        if (Q.ear === 'small') P.push(part('caps', { radius: hr * 0.15, height: hr * 0.7, tessellation: 6 }, f, hr * 0.8 * s, hy + hr * 0.3, hz - hr * 0.2, null, [0, 0, 1.2 * s]));
+        if (Q.tusks) P.push(part('cyl', { diameterTop: 0, diameterBottom: 0.07, height: 0.2, tessellation: 5 }, '#f4efe2', 0.12 * s, hy - hr * 0.2, hz + hr * 1.0, null, [-0.4, 0, -0.3 * s]));
+        if (Q.horns) [0, 1, 2].forEach(i => P.push(part('caps', { radius: 0.05 - i * 0.008, height: 0.28, tessellation: 6 }, '#5a4a3a', (hr * 0.35 + i * 0.05) * s, hy + hr * 0.95 + i * 0.12 - (i > 1 ? 0.12 : 0), hz - 0.05 - i * 0.16, null, [-0.6 - i * 0.7, 0, 0.15 * s])));
+      });
+      if (Q.beard) P.push(part('cyl', { diameterTop: 0.12, diameterBottom: 0, height: 0.22, tessellation: 5 }, bel, 0, hy - hr * 0.95, hz + hr * 0.5));
+      if (Q.tail === 'bushy') { P.push(part('caps', { radius: 0.12, height: 0.62, tessellation: 8 }, f, 0, cy + by * 0.1, -bz - 0.22, null, [-1.0, 0, 0])); P.push(part('sph', { diameter: 0.2, segments: 6 }, bel, 0, cy - by * 0.15, -bz - 0.47)); }
+      if (Q.tail === 'short') P.push(part('sph', { diameter: 0.16, segments: 6 }, f, 0, cy + by * 0.3, -bz - 0.02));
+      if (Q.tail === 'puff') P.push(part('sph', { diameter: 0.2, segments: 6 }, '#ffffff', 0, cy + by * 0.1, -bz - 0.05));
+      zF = bz * 0.5; zB = -bz * 0.5; legY = Q.leg + 0.05;
+      [-1, 1].forEach(s => {
+        LF.push(part('caps', { radius: Q.lr, height: Q.leg + Q.lr * 2, tessellation: 8 }, f, bx * 0.55 * s, -Q.leg / 2, 0));
+        LF.push(part('sph', { diameter: Q.lr * 2.4, segments: 6 }, '#2a1f18', bx * 0.55 * s, -Q.leg + 0.02, 0.02));
+        LB.push(part('caps', { radius: Q.lr * 1.1, height: Q.leg + Q.lr * 2, tessellation: 8 }, f, bx * 0.55 * s, -Q.leg / 2, 0));
+        LB.push(part('sph', { diameter: Q.lr * 2.4, segments: 6 }, '#2a1f18', bx * 0.55 * s, -Q.leg + 0.02, 0.02));
+      });
+      barY = hy + hr + 0.6; r = Math.max(bx, bz) * 0.9;
+    }
+    const hideM = m => { m.isVisible = false; m.isPickable = false; return m; };
+    return { body: hideM(group(type + 'B', P)), legF: LF.length ? hideM(group(type + 'LF', LF)) : null, legB: LB.length ? hideM(group(type + 'LB', LB)) : null, legY, zF, zB, anim, barY, r };
+  };
+
+  const placeMob = m => {
+    for (let t = 0; t < 30; t++) {
+      const a = Math.random() * Math.PI * 2, d = 24 + Math.random() * 60, x = Math.cos(a) * d, z = Math.sin(a) * d;
+      if (PONDS.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 2)) continue;
+      if (hero && Math.hypot(x - hero.position.x, z - hero.position.z) < 22) continue;
+      m.x = x; m.z = z; m.home = { x, z }; return;
+    }
+    m.x = 40; m.z = 40; m.home = { x: 40, z: 40 };
+  };
+  const resetMob = m => {
+    m.hp = m.maxHp; m.alive = true; m.state = 'wander'; m.tx = m.x; m.tz = m.z; m.waitT = rnd(0, 3);
+    m.atkT = 1; m.hurtT = 0; m.frozenT = 0; m.poison = null; m.dieT = 0; m.lunge = 0;
+    m.root.setEnabled(true); m.root.rotation.z = 0; m.shadow.isVisible = true;
+  };
+  function spawnAnimals(landId) {
+    mobs = []; mobSrc = {}; curMob = null;
+    (LAND_ANIMALS[landId] || []).forEach(([type, count]) => {
+      const src = mobSrc[type] = buildAnimalSrc(type), A = ANIMALS[type];
+      for (let i = 0; i < count; i++) {
+        const sc = A.size * rnd(0.9, 1.1);
+        const root = TN('mob_' + type);
+        root.scaling.setAll(sc);
+        const b = src.body.createInstance('mb'); b.parent = root; b.isPickable = false;
+        const mk = (s, z) => { if (!s) return null; const p = TN('leg', root); p.position.set(0, src.legY, z); const l = s.createInstance('ml'); l.parent = p; l.isPickable = false; return p; };
+        const m = { type, A, src, root, legF: mk(src.legF, src.zF), legB: mk(src.legB, src.zB), scale: sc, maxHp: A.hp, r: src.r * sc, walkT: Math.random() * 6, face: Math.random() * 6 };
+        m.shadow = addBlob(0, 0, 0, 1.6 * sc * (A.look === 'bear' ? 1.4 : 1));
+        placeMob(m); resetMob(m);
+        mobs.push(m);
+      }
+    });
+  }
+
+  // ---------- Ziel im Kampf ----------
+  const mobInReach = () => {
+    if (!hero) return null;
+    const hx = hero.position.x, hz = hero.position.z;
+    let best = null, bd = 1e9;
+    for (const m of mobs) {
+      if (!m.alive) continue;
+      const dx = m.x - hx, dz = m.z - hz;
+      if (Math.abs(dx) > 10 || Math.abs(dz) > 10) continue;
+      const d = Math.hypot(dx, dz);
+      if (d <= reachOf(m) && d < bd) { bd = d; best = m; }
+    }
+    return best;
+  };
+  const nearestMob = range => {
+    const hx = hero.position.x, hz = hero.position.z;
+    let best = null, bd = range;
+    for (const m of mobs) if (m.alive) { const d = Math.hypot(m.x - hx, m.z - hz); if (d < bd) { bd = d; best = m; } }
+    return best;
+  };
+
+  // ---------- Geschosse (Zauberer) ----------
+  const shots = [];
+  const shotMat = { bolt: smat('#c58bff', 0.3, 0.9), fire: smat('#ff8a2a', 0.3, 1) };
+  for (let i = 0; i < 8; i++) { const m = MB.CreateSphere('shot' + i, { diameter: 0.35, segments: 8 }, scene); m.isVisible = false; m.isPickable = false; shots.push({ m, life: 0 }); }
+  const fireShot = (m, dmg, kind) => {
+    const s = shots.find(x => x.life <= 0) || shots[0];
+    s.m.material = shotMat[kind]; s.m.scaling.setAll(kind === 'fire' ? 2 : 1);
+    s.m.position.set(hero.position.x + Math.sin(facing) * 0.8, hero.position.y + 1.8, hero.position.z + Math.cos(facing) * 0.8);
+    s.m.isVisible = true; s.life = 2; s.target = m; s.dmg = dmg; s.kind = kind;
+  };
+
+  // ---------- Schaden ----------
+  const dealDamage = (m, dmg, opts) => {
+    if (!m.alive) return;
+    opts = opts || {};
+    const crit = !opts.noCrit && Math.random() < (cls() === 'spy' ? 0.25 : 0.1);
+    let v = Math.max(1, Math.round(dmg * (crit ? 1.8 : 1)));
+    m.hp -= v; m.hurtT = 0.25; curMob = m; combatT = 5;
+    const head = new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + m.src.barY * m.scale, m.z);
+    popText(`<span style="color:${opts.color || (crit ? '#ffd23f' : '#ffffff')};font-size:${crit ? 24 : 19}px">${crit ? '💥' : ''}${v}</span>`, head);
+    burst(m.x, heightAt(m.x, m.z) + 0.8 * m.scale, m.z, m.A.fur, crit ? 8 : 4);
+    if (m.A.passive) m.state = 'flee'; else m.state = 'chase';
+    if (m.hp <= 0) killMob(m);
+  };
+  const attackHit = (m, mult, ability) => {
+    const d = derived();
+    const dmg = d.atk * rnd(0.85, 1.15) * mult;
+    if (cls() === 'mage') { fireShot(m, dmg, ability === 'fireball' ? 'fire' : 'bolt'); return; }
+    if (Math.hypot(m.x - hero.position.x, m.z - hero.position.z) > reachOf(m) + 0.8) { popText('daneben', new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + 2, m.z)); return; }
+    dealDamage(m, dmg);
+    if (ability === 'poison') m.poison = { t: 6, dps: d.atk * 0.5, tick: 1 };
+    vibrate(20);
+  };
+  const killMob = m => {
+    m.alive = false; m.dieT = 0.5; m.respawnAt = performance.now() + 40000;
+    if (curMob === m) curMob = null;
+    S.stats.kills = (S.stats.kills || 0) + 1;
+    S.stats['m_' + m.type] = (S.stats['m_' + m.type] || 0) + 1;
+    const A = m.A, Lt = TIER_LOOT[A.tier], at = new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + 2, m.z);
+    addXp(A.xp);
+    const cim = Math.round(rnd(Lt.cim[0], Lt.cim[1]));
+    S.money += cim; S.stats.looted = (S.stats.looted || 0) + cim;
+    setTimeout(() => popText('+' + cim + ' ' + CIM, at), 150);
+    if (A.drop && Math.random() < 0.75) give(A.drop, Math.random() < 0.3 ? 2 : 1, at, 450);
+    let delay = 700;
+    Lt.pots.forEach(([p, ch]) => { if (Math.random() < ch) { S.bag[p] = (S.bag[p] || 0) + 1; setTimeout(() => popText('+1 ' + CONS[p].e, at), delay); delay += 250; } });
+    if (Math.random() < Lt.gear * (1 + derived().luck)) {
+      let id = Lt.pool[Math.floor(Math.random() * Lt.pool.length)];
+      if (id.startsWith('CW')) id = CW_PREFIX[cls()] + id[2];
+      const g = GEAR[id];
+      if (S.owned[id]) { const v = Math.round(g.price * 0.4); S.money += v; setTimeout(() => toast(`Beute: ${g.e} ${g.name} (hast du schon → +${v} ${CIM})`), 900); }
+      else { S.owned[id] = true; S.stats.loot = (S.stats.loot || 0) + 1; setTimeout(() => { toast(`✨ Seltene Beute: ${g.e} ${g.name}! Schau ins 🎒`, true); vibrate([40, 40, 80]); }, 900); }
+    }
+    burst(m.x, heightAt(m.x, m.z) + 0.8, m.z, '#ffd23f', 10);
+    bump('money'); updateHud(); updatePotBtn(); checkAch(); save();
+  };
+  const hurtPlayer = (raw, m) => {
+    if (S.hp <= 0 || deadUntil) return;
+    const d = derived();
+    const dmg = Math.max(1, Math.round(raw * rnd(0.9, 1.1) * 60 / (60 + d.def * 3) * (wallT > 0 ? 0.5 : 1)));
+    S.hp -= dmg; combatT = 5;
+    if (!curMob || !curMob.alive) curMob = m;
+    popText(`<span style="color:#ff5a5a">-${dmg}</span>`, new BABYLON.Vector3(hero.position.x, hero.position.y + 3, hero.position.z));
+    const h = $('hurt'); h.classList.remove('on'); void h.offsetWidth; h.classList.add('on');
+    vibrate(40); updateHud();
+    if (S.hp <= 0) die(m);
+  };
+  const die = m => {
+    S.hp = 0; deadUntil = 1; actionHeld = false;
+    const lost = Math.floor(S.money * 0.1);
+    $('deathTxt').innerHTML = `${m ? 'Ein ' + m.A.name + ' (Stufe ' + m.A.tier + ')' : 'Etwas'} hat dich besiegt.<br>Du verlierst ${lost} ${CIM} Cim und wachst auf dem Marktplatz auf.`;
+    $('death').hidden = false; $('death').dataset.lost = lost;
+    updateHud();
+  };
+  $('deathGo').addEventListener('click', () => {
+    S.money = Math.max(0, S.money - (+$('death').dataset.lost || 0));
+    S.hp = derived().hpMax; deadUntil = 0; combatT = 0; curMob = null;
+    hero.position.set(-2.5, 0, -6); facing = 0; hero.rotation.y = 0;
+    mobs.forEach(m => { if (m.alive && m.state === 'chase') m.state = 'wander'; });
+    $('death').hidden = true; updateHud(); save();
+  });
+
+  // ---------- Heiltränke ----------
+  const usePotion = id => {
+    const d = derived();
+    if (!S.bag[id]) return false;
+    if (S.hp >= d.hpMax) { toast('❤ Du bist schon ganz gesund.'); return false; }
+    S.bag[id]--; S.hp = Math.min(d.hpMax, S.hp + CONS[id].heal);
+    toast(CONS[id].e + ' +' + CONS[id].heal + ' Leben');
+    burst(hero.position.x, hero.position.y + 2, hero.position.z, '#ff4fa3', 12);
+    updateHud(); updatePotBtn(); save();
+    return true;
+  };
+  const bestPotion = () => {
+    const miss = derived().hpMax - S.hp;
+    const order = miss > 220 ? ['potion3', 'potion2', 'potion'] : miss > 90 ? ['potion2', 'potion', 'potion3'] : ['potion', 'potion2', 'potion3'];
+    return order.find(id => S.bag[id] > 0);
+  };
+  const updatePotBtn = () => {
+    const n = Object.keys(CONS).reduce((a, id) => a + (S.bag[id] || 0), 0);
+    $('potBtn').hidden = !n; $('potCnt').textContent = n;
+  };
+  $('potBtn').addEventListener('click', () => { const id = bestPotion(); if (id) usePotion(id); });
+
+  // ---------- Klassen-Fähigkeiten ----------
+  const abilityList = () => AB[cls()].map((a, i) => ({ id: a[0], lv: a[1], cd: a[2], info: ABILITIES[cls()][i] }));
+  let abKey = '';
+  const renderAbilities = () => {
+    const list = abilityList().filter(a => S.level >= a.lv);
+    const key = cls() + list.length;
+    if (key === abKey) return;
+    abKey = key;
+    $('abilities').innerHTML = list.map((a, i) => `<button class="ab ab${i}" data-ab="${a.id}" aria-label="${a.info[2]}"><span>${a.info[1]}</span><i></i></button>`).join('');
+  };
+  const updateAbilityUI = () => {
+    renderAbilities();
+    document.querySelectorAll('#abilities .ab').forEach(b => {
+      const a = abilityList().find(x => x.id === b.dataset.ab);
+      const left = abCd[a.id] || 0;
+      b.style.setProperty('--cd', (left / a.cd * 360) + 'deg');
+      b.classList.toggle('cool', left > 0);
+    });
+  };
+  const useAbility = id => {
+    if ((abCd[id] || 0) > 0 || deadUntil || !hero) return;
+    const a = abilityList().find(x => x.id === id); if (!a || S.level < a.lv) return;
+    const d = derived(), hp = hero.position;
+    const needTarget = ['power', 'fireball', 'poison', 'shadow'].includes(id);
+    const tgt = needTarget ? (id === 'fireball' || id === 'shadow' ? nearestMob(11) : mobInReach() || nearestMob(3.5)) : null;
+    if (needTarget && !tgt) { toast('Kein Gegner in Reichweite'); return; }
+    if (tgt) { facing = Math.atan2(tgt.x - hp.x, tgt.z - hp.z); hero.rotation.y = facing; }
+    if (id === 'shadow') {
+      const bx = tgt.x - Math.sin(tgt.face) * (tgt.r + 1), bz = tgt.z - Math.cos(tgt.face) * (tgt.r + 1);
+      burst(hp.x, hp.y + 1, hp.z, '#3a2a5a', 12);
+      hero.position.x = bx; hero.position.z = bz;
+      facing = Math.atan2(tgt.x - bx, tgt.z - bz); hero.rotation.y = facing;
+      burst(bx, heightAt(bx, bz) + 1, bz, '#3a2a5a', 12);
+    }
+    if (['power', 'poison', 'shadow', 'fireball'].includes(id)) {
+      swingT = 0; hitDone = false; swingTarget = { kind: 'mob', mob: tgt, mult: id === 'power' ? 2 : id === 'fireball' ? 2.2 : id === 'shadow' ? 1.6 : 1, ability: id };
+    }
+    if (id === 'wall') { wallT = 6; burst(hp.x, hp.y + 1.5, hp.z, '#5fa8ff', 16); toast('🧱 Schildwall: halber Schaden für 6 Sekunden'); }
+    if (id === 'heal') { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.4); burst(hp.x, hp.y + 1.5, hp.z, '#4fd36b', 18); toast('💚 Heilzauber: +' + Math.round(d.hpMax * 0.4) + ' Leben'); updateHud(); }
+    if (id === 'whirl') { spinT = 0.5; mobs.forEach(m => { if (m.alive && Math.hypot(m.x - hp.x, m.z - hp.z) < 3.8) dealDamage(m, d.atk * 1.4); }); burst(hp.x, hp.y + 1, hp.z, '#ffd23f', 18); }
+    if (id === 'frost') { mobs.forEach(m => { if (m.alive && Math.hypot(m.x - hp.x, m.z - hp.z) < 7) { m.frozenT = 3; dealDamage(m, d.atk * 1.3, { color: '#9fe8ff' }); burst(m.x, heightAt(m.x, m.z) + 1, m.z, '#bfefff', 8); } }); burst(hp.x, hp.y + 1, hp.z, '#bfefff', 20); }
+    if (id === 'vanish') { invisT = 5; mobs.forEach(m => { if (m.state === 'chase') m.state = 'wander'; }); toast('👻 Unsichtbar für 5 Sekunden'); }
+    abCd[id] = a.cd; combatT = 5; vibrate(25);
+    updateAbilityUI(); save();
+  };
+  $('abilities').addEventListener('pointerdown', e => { const b = e.target.closest('[data-ab]'); if (b) { e.preventDefault(); useAbility(b.dataset.ab); } });
+  let spinT = 0;
+
+  // ---------- Waffe im Kampf in die Hand nehmen ----------
+  const STANCE = {
+    home: { sword: [[-0.47, 1.25, 0.05], [Math.PI + 0.45, 0, 0.12]], staff: [[0.15, 1.7, -0.62], [0, 0, 0.5]], dagger: [[0.45, 1.2, 0.12], [Math.PI + 0.3, 0, -0.15]] },
+    hand: { sword: [[0, -0.86, 0.05], [Math.PI / 2 - 0.3, 0, 0]], staff: [[0, -0.86, 0.12], [0.3, 0, 0]], dagger: [[0, -0.86, 0.05], [Math.PI / 2 - 0.3, 0, 0]] }
+  };
+  const updateStance = () => {
+    const want = combatT > 0 && !!S.gear.weapon;
+    Object.keys(weaponNodes).forEach(k => {
+      const n = weaponNodes[k], par = want ? armR : body;
+      if (n.parent !== par) {
+        n.parent = par;
+        const t = (want ? STANCE.hand : STANCE.home)[k];
+        n.position.set(t[0][0], t[0][1], t[0][2]); n.rotation.set(t[1][0], t[1][1], t[1][2]);
+      }
+    });
+    const tn = toolNodes[S.eq];
+    if (tn && tn.isEnabled() === want) tn.setEnabled(!want);
+  };
+
+  // ---------- Lebensbalken über dem Gegner ----------
+  const mobBar = $('mobBar');
+  const updateMobBar = () => {
+    const m = curMob;
+    if (!m || !m.alive || Math.hypot(m.x - hero.position.x, m.z - hero.position.z) > 20) { mobBar.hidden = true; return; }
+    const p = toScreen(new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + m.src.barY * m.scale + 0.3, m.z));
+    if (p.z < 0 || p.z > 1) { mobBar.hidden = true; return; }
+    mobBar.hidden = false;
+    mobBar.style.left = p.x + 'px'; mobBar.style.top = p.y + 'px';
+    mobBar.innerHTML = `<b><span style="background:${TIER_COL[m.A.tier]}">${m.A.tier}</span>${m.A.name}</b><div class="mb"><i style="width:${Math.max(0, m.hp / m.maxHp * 100)}%"></i></div>`;
+  };
+
+  // ---------- Tiere bewegen (jedes Bild) ----------
+  const updateCombat = (dt, now, paused) => {
+    combatT = Math.max(0, combatT - dt); wallT = Math.max(0, wallT - dt);
+    Object.keys(abCd).forEach(k => { abCd[k] = Math.max(0, abCd[k] - dt); });
+    if (invisT > 0) { invisT -= dt; const v = invisT > 0 ? 0.35 : 1; hero.getChildMeshes(false).forEach(mm => { mm.visibility = v; }); }
+    if (spinT > 0) { spinT -= dt; body.rotation.y = (0.5 - spinT) / 0.5 * Math.PI * 2; if (spinT <= 0) body.rotation.y = 0; }
+    updateStance();
+    // Geschosse
+    for (const s of shots) {
+      if (s.life <= 0) continue;
+      s.life -= dt;
+      const m = s.target;
+      if (!m || !m.alive || s.life <= 0) { s.life = 0; s.m.isVisible = false; continue; }
+      const tx = m.x, ty = heightAt(m.x, m.z) + 0.9 * m.scale, tz = m.z;
+      const dx = tx - s.m.position.x, dy = ty - s.m.position.y, dz = tz - s.m.position.z, dd = Math.hypot(dx, dy, dz);
+      const step = 22 * dt;
+      if (dd < step + 0.3) { dealDamage(m, s.dmg, { color: s.kind === 'fire' ? '#ffb02a' : '#e2b8ff' }); burst(tx, ty, tz, s.kind === 'fire' ? '#ff8a2a' : '#c58bff', 10); s.life = 0; s.m.isVisible = false; }
+      else s.m.position.addInPlaceFromFloats(dx / dd * step, dy / dd * step, dz / dd * step);
+    }
+    if (paused || deadUntil) return;
+    const hx = hero.position.x, hz = hero.position.z, safe = Math.hypot(hx, hz) < 15 || invisT > 0;
+    for (const m of mobs) {
+      const A = m.A;
+      if (!m.alive) {
+        if (m.dieT > 0) {
+          m.dieT -= dt; m.root.rotation.z = Math.min(1.5, (0.5 - m.dieT) * 3.2);
+          if (m.dieT <= 0) { m.root.setEnabled(false); m.shadow.isVisible = false; }
+        } else if (now > m.respawnAt) { placeMob(m); resetMob(m); }
+        continue;
+      }
+      const dx = hx - m.x, dz = hz - m.z, d = Math.hypot(dx, dz);
+      if (d > 75 && m.state === 'wander') continue;
+      if (m.poison) { m.poison.t -= dt; m.poison.tick -= dt; if (m.poison.tick <= 0) { m.poison.tick = 1; dealDamage(m, m.poison.dps, { color: '#7cff6b', noCrit: true }); } if (m.poison && m.poison.t <= 0) m.poison = null; if (!m.alive) continue; }
+      m.atkT -= dt; m.lunge = Math.max(0, m.lunge - dt);
+      let mvx = 0, mvz = 0, sp = 0;
+      if (m.frozenT > 0) m.frozenT -= dt;
+      else {
+        if (A.passive) {
+          if (d < 6 || (m.state === 'flee' && d < 16)) { m.state = 'flee'; mvx = -dx / d; mvz = -dz / d; sp = A.spd; }
+          else m.state = 'wander';
+        } else if (!safe && (d < A.aggro || (m.state === 'chase' && d < A.aggro * 2.5))) {
+          m.state = 'chase';
+          const reach = 1.1 + m.r + 0.3;
+          if (d > reach) { mvx = dx / d; mvz = dz / d; sp = A.spd * 0.85; }
+          else { m.face = Math.atan2(dx, dz); if (m.atkT <= 0) { m.atkT = 1.6; m.lunge = 0.3; hurtPlayer(A.dmg, m); } }
+        } else if (m.state === 'chase') { m.state = 'wander'; m.tx = m.home.x; m.tz = m.home.z; }
+        if (m.state === 'wander') {
+          const tdx = m.tx - m.x, tdz = m.tz - m.z, td = Math.hypot(tdx, tdz);
+          if (td < 0.6) { m.waitT -= dt; if (m.waitT <= 0) { const a = Math.random() * 6.28, r = 3 + Math.random() * 9; m.tx = m.home.x + Math.cos(a) * r; m.tz = m.home.z + Math.sin(a) * r; m.waitT = rnd(1.5, 4.5); } }
+          else { mvx = tdx / td; mvz = tdz / td; sp = A.spd * 0.3; }
+        }
+      }
+      if (sp > 0) {
+        let nx = m.x + mvx * sp * dt, nz = m.z + mvz * sp * dt;
+        const dc = Math.hypot(nx, nz);
+        if (dc < 16) { nx = nx / dc * 16; nz = nz / dc * 16; if (m.state === 'wander') { m.tx = m.home.x; m.tz = m.home.z; } }
+        if (dc > WORLD - 2) { nx *= (WORLD - 2) / dc; nz *= (WORLD - 2) / dc; }
+        m.x = nx; m.z = nz;
+        const want = Math.atan2(mvx, mvz);
+        m.face += Math.atan2(Math.sin(want - m.face), Math.cos(want - m.face)) * Math.min(1, dt * 8);
+      }
+      // Darstellung
+      const y = heightAt(m.x, m.z);
+      const lunge = m.lunge > 0 ? Math.sin((0.3 - m.lunge) / 0.3 * Math.PI) * 0.5 : 0;
+      m.root.position.set(m.x + Math.sin(m.face) * lunge, y, m.z + Math.cos(m.face) * lunge);
+      m.root.rotation.y = m.face;
+      m.shadow.position.set(m.x, y + 0.06, m.z);
+      const mv = Math.min(1, sp / 3);
+      m.walkT += dt * (4 + sp * 2.5) * (sp > 0 ? 1 : 0);
+      const sw = Math.sin(m.walkT) * 0.6 * mv;
+      if (m.src.anim === 'quad') { if (m.legF) m.legF.rotation.x = sw; if (m.legB) m.legB.rotation.x = -sw; }
+      else if (m.src.anim === 'scuttle') { if (m.legF) m.legF.rotation.z = sw * 0.4; if (m.legB) m.legB.rotation.z = -sw * 0.4; }
+      else m.root.rotation.z = Math.sin(now * 0.004 + m.walkT) * 0.06;
+      const pulse = m.hurtT > 0 ? 1 + Math.sin(m.hurtT * 40) * 0.08 : 1;
+      if (m.hurtT > 0) m.hurtT -= dt;
+      m.root.scaling.setAll(m.scale * pulse);
+      if (m.frozenT > 0 && Math.random() < dt * 4) burst(m.x, y + 1, m.z, '#bfefff', 1);
+    }
+    updateMobBar();
+  };
   // =====================================================================
   // Spiel-Schleife
   // =====================================================================
@@ -1582,7 +2040,7 @@
     if (d2 < min * min && d2 > 0.0001) { const d = Math.sqrt(d2); p.x = o.x + dx / d * min; p.z = o.z + dz / d * min; }
   };
   const np = { x: 0, z: 0 };
-  const overlays = ['inv', 'shop', 'travel', 'chat'];
+  const overlays = ['inv', 'shop', 'travel', 'chat', 'death'];
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
@@ -1608,6 +2066,7 @@
       np.x = hero.position.x + mx * sp * dt; np.z = hero.position.z + mz * sp * dt;
       for (const o of nodes) if (o.alive && Math.abs(o.x - np.x) < 3 && Math.abs(o.z - np.z) < 3) pushOut(np, o);
       for (const o of solids) if (Math.abs(o.x - np.x) < 3 && Math.abs(o.z - np.z) < 3) pushOut(np, o);
+      for (const m of mobs) if (m.alive && Math.abs(m.x - np.x) < 3 && Math.abs(m.z - np.z) < 3) pushOut(np, { x: m.x, z: m.z, r: m.r * 0.8 });
       const dc = Math.hypot(np.x, np.z);
       if (dc > WORLD) { np.x *= WORLD / dc; np.z *= WORLD / dc; }
       hero.position.x = np.x; hero.position.z = np.z;
@@ -1706,10 +2165,11 @@
       else { const p = toScreen(new BABYLON.Vector3(hero.position.x, hero.position.y + 4.35, hero.position.z)); bub.style.left = p.x + 'px'; bub.style.top = p.y + 'px'; }
     }
 
+    updateCombat(dt, now, uiOpen);
     regenTimer += dt;
-    if (regenTimer > 1) { regenTimer = 0; S.played = (S.played || 0) + 1; if (S.hp < d.hpMax) { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.02); updateHud(); } }
+    if (regenTimer > 1) { regenTimer = 0; S.played = (S.played || 0) + 1; if (S.hp < d.hpMax && S.hp > 0 && combatT <= 0) { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.02); updateHud(); } }
     uiTimer -= dt;
-    if (uiTimer <= 0) { uiTimer = 0.12; if (!creating) updateActButton(); }
+    if (uiTimer <= 0) { uiTimer = 0.12; if (!creating) { updateActButton(); updateAbilityUI(); } }
 
     perfTimer += dt;
     if (perfTimer > 2) {
@@ -1726,6 +2186,7 @@
   buildLand(S.land);
   buildHero();
   hero.position.set(-2.5, 0, -6);
+  updatePotBtn();
   updateHud();
   if (!S.hero) { previewCreate(); openCreate(); }
   engine.runRenderLoop(() => scene.render());
