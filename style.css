@@ -281,3 +281,74 @@ body.creating #hud, body.creating #landPill, body.creating #hint, body.creating 
 .deathCard h2 { margin: 4px 0 8px; }
 .deathCard p { font-size: 14px; color: #6a6458; margin: 0 0 16px; }
 body.creating #potBtn, body.creating #abilities, body.creating #mobBar { display: none !important; }
+
+/* ===== Mehrspieler ===== */
+:root { --sal: env(safe-area-inset-left, 0px); }
+#hud { left: calc(16px + env(safe-area-inset-left)); right: calc(16px + env(safe-area-inset-right)); }
+#landPill, #potBtn { left: calc(16px + env(safe-area-inset-left)); }
+#pvpBtn.on { background: rgba(170,25,35,.8); border-color: #ffb3b3; box-shadow: 0 0 12px rgba(255,60,60,.6); }
+#onlineCnt { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; line-height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; background: #1f9b4a; color: #fff; font-size: 11px; font-weight: 900; font-style: normal; border: 2px solid #fff; }
+#onlineCnt[hidden] { display: none; }
+#chatBtn.dot::after { content: ''; position: absolute; top: -3px; left: -3px; width: 14px; height: 14px; border-radius: 50%; background: #ff3b4f; border: 2px solid #fff; }
+#party { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: calc(212px + env(safe-area-inset-left)); display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 480px); pointer-events: none; }
+#party[hidden] { display: none; }
+#party .pm { background: rgba(20,90,45,.75); border: 1px solid rgba(160,255,180,.6); color: #fff; border-radius: 10px; padding: 3px 8px 4px; font-size: 11px; font-weight: 800; min-width: 80px; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+#party .pm.far { opacity: .6; }
+#party .pm i { display: block; height: 5px; margin-top: 3px; background: rgba(0,0,0,.45); border-radius: 3px; overflow: hidden; }
+#party .pm i b { display: block; height: 100%; background: linear-gradient(90deg,#ff4d5e,#ff8a5c); }
+.rbub { position: fixed; transform: translate(-50%, -100%); max-width: 200px; background: #fff; color: #222; font-size: 13px; padding: 7px 11px; border-radius: 14px; box-shadow: 0 3px 10px rgba(0,0,0,.3); pointer-events: none; opacity: 0; transition: opacity .25s; word-wrap: break-word; }
+.rbub.show { opacity: 1; }
+#gInvite { position: fixed; top: calc(70px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); background: #f6f3ec; color: #2b2b35; border-radius: 16px; padding: 10px 12px; box-shadow: 0 6px 24px rgba(0,0,0,.35); z-index: 22; display: flex; flex-direction: column; gap: 8px; align-items: center; font-size: 14px; animation: up .25s ease-out; max-width: 90vw; text-align: center; }
+#gInvite[hidden] { display: none; }
+#gInvite div { display: flex; gap: 8px; }
+#gInvite button { border: 0; border-radius: 10px; padding: 8px 16px; font-weight: 800; background: #1f9b4a; color: #fff; }
+#gInvite button.alt { background: #e3ddd0; color: #4a4a55; }
+.pbox { background: #e9f7ea; border: 1px solid #b6e3bd; border-radius: 14px; padding: 10px 12px; margin-bottom: 4px; }
+.pbox small { color: #4a7a55; font-size: 11px; }
+.prow { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,.06); }
+.prow button { border: 0; border-radius: 8px; padding: 5px 9px; font-size: 12px; font-weight: 700; background: #e3ddd0; color: #4a4a55; }
+.wide.leave { background: #c0392b; margin: 10px 0 0; padding: 9px; font-size: 13px; }
+#chatList .row { align-self: stretch; }
+#chatList h4 { margin: 8px 0 2px; }
+body.creating #pvpBtn, body.creating #party { display: none; }
+
+/* Hinweis: Handy drehen */
+#rotate { display: none; position: fixed; inset: 0; z-index: 60; background: linear-gradient(160deg, #1b2a4a, #3a1f5a); color: #fff; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
+#rotate .rph { font-size: 64px; animation: turn 2s ease-in-out infinite; }
+#rotate b { font-size: 20px; }
+#rotate small { font-size: 14px; opacity: .8; }
+@keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+
+/* ===== Querformat (Handy liegt quer) ===== */
+@media (orientation: landscape) and (max-height: 520px) {
+  #landPill { top: calc(78px + env(safe-area-inset-top)); }
+  #potBtn { top: calc(108px + env(safe-area-inset-top)); width: 46px; height: 46px; font-size: 23px; }
+  #hint { top: calc(62px + env(safe-area-inset-top)); }
+  #toast { top: calc(64px + env(safe-area-inset-top)); max-width: 50%; }
+  .hbtn { width: 44px; height: 44px; font-size: 22px; border-radius: 14px; }
+  #hudR { flex-direction: row-reverse; align-items: center; }
+  #money { font-size: 15px; }
+  #act { width: 84px; height: 84px; bottom: calc(18px + env(safe-area-inset-bottom)); right: calc(18px + env(safe-area-inset-right)); }
+  #abilities .ab { width: 50px; height: 50px; font-size: 24px; }
+  #abilities .ab0 { right: calc(114px + env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom)); }
+  #abilities .ab1 { right: calc(104px + env(safe-area-inset-right)); bottom: calc(84px + env(safe-area-inset-bottom)); }
+  #abilities .ab2 { right: calc(52px + env(safe-area-inset-right)); bottom: calc(118px + env(safe-area-inset-bottom)); }
+  #toolBadge { bottom: calc(176px + env(safe-area-inset-bottom)); right: calc(26px + env(safe-area-inset-right)); width: 46px; height: 46px; font-size: 22px; }
+  #levelup #lvNum { font-size: 64px; } #levelup #lvTitle { font-size: 32px; }
+  /* Fenster mittig statt von unten */
+  .overlay { align-items: center; justify-content: center; }
+  .sheet { width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 20px); border-radius: 20px; padding: 12px 16px 14px; }
+  .chatSheet { height: calc(100vh - 20px); }
+  .tabs { margin: 8px 0; }
+  #itemPop { bottom: 12px; }
+  /* Figur erstellen: Formular rechts, Figur links */
+  #create { align-items: stretch; justify-content: flex-end; background: linear-gradient(90deg, rgba(10,15,40,0) 40%, rgba(10,15,40,.5) 100%); }
+  .ccard { width: min(400px, 50vw); max-height: none; height: 100%; border-radius: 22px 0 0 22px; padding: 14px calc(16px + env(safe-area-inset-right)) 14px 16px; display: flex; flex-direction: column; justify-content: center; }
+  .ccard h2 { font-size: 18px; margin-bottom: 8px; }
+  #cName { padding: 9px 12px; font-size: 16px; }
+  .seg button { padding: 7px; }
+  .classes button { padding: 6px 4px; } .classes button .e { font-size: 24px; }
+  #cDesc { margin: 6px 0; font-size: 12px; min-height: 0; }
+  .wide.go { padding: 11px; }
+}

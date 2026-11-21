@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1b2a4a">
 <title>Cimacu</title>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -22,12 +22,16 @@
     <div id="hudBtns">
       <button id="charBtn" class="hbtn" aria-label="Charakter öffnen">👤</button>
       <button id="bag" class="hbtn" aria-label="Inventar öffnen">🎒</button>
-      <button id="chatBtn" class="hbtn" aria-label="Chat öffnen">💬</button>
+      <button id="pvpBtn" class="hbtn" aria-label="Duell-Modus an/aus">🕊️</button>
+      <button id="chatBtn" class="hbtn" aria-label="Chat und Spieler öffnen">💬<i id="onlineCnt" hidden></i></button>
     </div>
   </div>
 </div>
 <div id="landPill">📍 Grünland</div>
-<div id="hint">Links ziehen = laufen · Rechts wischen = Kamera</div>
+<div id="party" hidden></div>
+<div id="hint">Links ziehen = laufen · Rechts wischen = Kamera · 2 Finger = Zoom</div>
+<div id="gInvite" hidden><span id="gInvTxt"></span><div><button id="gInvYes">Annehmen</button><button id="gInvNo" class="alt">Nein</button></div></div>
+<div id="rotate"><div class="rph">📱</div><b>Bitte dreh dein Handy quer</b><small>Cimacu spielt man im Querformat.</small></div>
 
 <div id="stick"><div id="knob"></div></div>
 
@@ -86,7 +90,7 @@
   <div class="sheet chatSheet">
     <div class="sheetHead"><span>💬 Chat</span><button class="closeBtn" data-close="chat" aria-label="Schließen">✕</button></div>
     <div id="chatTabs" class="tabs"></div>
-    <div class="offline">🔌 Der Chat ist noch nicht mit dem Internet verbunden. Deine Nachrichten siehst im Moment nur du.</div>
+    <div id="netInfo" class="offline"></div>
     <div id="chatList"></div>
     <div id="chatEmoji"></div>
     <form id="chatForm" autocomplete="off"><input id="chatIn" maxlength="120" placeholder="Nachricht schreiben …" enterkeyhint="send"><button type="submit">Senden</button></form>
@@ -107,6 +111,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.0.0/babylon.js"></script>
-<script src="game.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="game.js?v=9"></script>
 </body>
 </html>

@@ -785,14 +785,15 @@
   const tierColor = (tool, tier) => tier === 3 ? (tool === 'pick' ? '#5ff2ff' : '#ffc533') : tier === 2 ? '#cfd5e2' : (tool === 'shovel' || tool === 'bucket' ? '#9e7347' : '#80808a');
 
   let H = null, hero = null, body, legL, legR, armL, armR, toolNodes = {}, weaponNodes = {}, helmNode, armorNode, pads, shieldNode, nameTag = null;
-  const heroLook = () => {
-    const h = S.hero || { gender: 'm', cls: 'fighter' }, c = CLASSES[h.cls] || CLASSES.fighter, f = h.gender === 'f';
+  const heroLook = () => lookFor(S.hero || { gender: 'm', cls: 'fighter' }, S.gear.clothes);
+  const lookFor = (h, clothesId) => {
+    const c = CLASSES[h.cls] || CLASSES.fighter, f = h.gender === 'f';
     const look = { skin: '#f2c39b', shirt: c.shirt, pants: c.pants, boots: '#5b3a22', hair: f ? '#8a4a1f' : '#6b3e1f', hairStyle: f ? 'long' : 'short', lashes: f, lips: f ? '#c4505a' : '#8a3b3b' };
     if (h.cls === 'mage') Object.assign(look, { robe: '#4a3290', hat: 'wizard', hatColor: '#4a3290', belt: '#ffd23f', sleeve: '#5b3fa8' });
     if (h.cls === 'spy') Object.assign(look, { hat: f ? null : 'hood', hatColor: '#1f2a2e', scarf: '#7a1f2a', cape: '#1f2a2e', belt: '#3a2a20' });
     if (h.cls === 'fighter') Object.assign(look, { cape: '#8a1f1f', belt: '#5a3a1e' });
     if (h.cls === 'spy' && f) Object.assign(look, { hat: 'hood', hatColor: '#1f2a2e' });
-    const cl = S.gear.clothes && GEAR[S.gear.clothes];
+    const cl = clothesId && GEAR[clothesId] && GEAR[clothesId].slot === 'clothes' ? GEAR[clothesId] : null;
     if (cl) {
       Object.assign(look, { shirt: cl.shirt, pants: cl.pants, sleeve: cl.shirt });
       if (look.robe) look.robe = cl.pants;
@@ -859,20 +860,26 @@
   function makeNameTag() {
     if (nameTag) { nameTag.material.diffuseTexture.dispose(); nameTag.material.dispose(); nameTag.dispose(); nameTag = null; }
     if (!S.hero) return;
-    const c = CLASSES[S.hero.cls];
+    nameTag = makeTag(CLASSES[S.hero.cls].e + ' ' + S.hero.name, 'rgba(15,20,45,0.7)');
+    nameTag.parent = hero;
+  }
+  // Namensschild-Fläche (auch für andere Spieler)
+  function makeTag(txt, bg) {
     const tex = new BABYLON.DynamicTexture('tagT', { width: 512, height: 96 }, scene, true);
     const ctx = tex.getContext(); ctx.clearRect(0, 0, 512, 96);
     ctx.font = 'bold 50px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-    const txt = c.e + ' ' + S.hero.name, w = Math.min(500, ctx.measureText(txt).width + 40);
-    ctx.fillStyle = 'rgba(15,20,45,0.7)';
+    const w = Math.min(500, ctx.measureText(txt).width + 40);
+    ctx.fillStyle = bg;
     const x0 = 256 - w / 2; ctx.beginPath(); ctx.moveTo(x0 + 30, 10); ctx.arcTo(x0 + w, 10, x0 + w, 86, 30); ctx.arcTo(x0 + w, 86, x0, 86, 30); ctx.arcTo(x0, 86, x0, 10, 30); ctx.arcTo(x0, 10, x0 + w, 10, 30); ctx.fill();
     ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 256, 50);
     tex.update(); tex.hasAlpha = true;
     const m = new BABYLON.StandardMaterial('tagM', scene);
     m.diffuseTexture = tex; m.opacityTexture = tex; m.emissiveColor = new BABYLON.Color3(1, 1, 1); m.disableLighting = true; m.backFaceCulling = false;
-    nameTag = MB.CreatePlane('tag', { width: 2.2, height: 0.41 }, scene);
-    nameTag.material = m; nameTag.parent = hero; nameTag.position.y = 3.45; nameTag.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; nameTag.isPickable = false;
+    const tag = MB.CreatePlane('tag', { width: 2.2, height: 0.41 }, scene);
+    tag.material = m; tag.position.y = 3.45; tag.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; tag.isPickable = false;
+    return tag;
   }
+  const disposeTag = t => { if (!t) return; t.material.diffuseTexture.dispose(); t.material.dispose(); t.dispose(); };
   function refreshTools() {
     TOOL_ORDER.forEach(t => {
       if (toolNodes[t]) toolNodes[t].setEnabled(t === S.eq);
@@ -1021,6 +1028,7 @@
   const findTarget = () => {
     const hx = hero.position.x, hz = hero.position.z;
     const mob = mobInReach(); if (mob) return { kind: 'mob', mob };
+    const pl = playerTarget(cls() === 'mage' ? 8 : 2.6); if (pl) return { kind: 'player', pl };
     if (portal && Math.hypot(portal.front.x - hx, portal.front.z - hz) < 2.6) return { kind: 'portal' };
     if (portal && Math.hypot(portal.back.x - hx, portal.back.z - hz) < 2.0) return { kind: 'portal' };
     for (const s of SHOPS) if (Math.hypot(s.front.x - hx, s.front.z - hz) < 2.4) return { kind: 'shop', shop: s };
@@ -1049,7 +1057,7 @@
     if (swingT >= 0 || !S.hero) return;
     const tgt = findTarget();
     // Beim Gedrückthalten nur dieselbe Art weitermachen (nach dem Kampf nicht plötzlich graben)
-    const kindNow = tgt ? (tgt.kind === 'mob' ? 'mob' : 'other') : null;
+    const kindNow = tgt ? (tgt.kind === 'mob' || tgt.kind === 'player' ? 'mob' : 'other') : null;
     if (holdKind && kindNow !== holdKind) { actionHeld = false; holdKind = null; return; }
     holdKind = actionHeld ? kindNow : null;
     if (!tgt) { toast('Hier gibt es nichts abzubauen. Geh in die Natur, zu einem Händler oder zum Reisetor.'); actionHeld = false; return; }
@@ -1057,6 +1065,10 @@
     if (tgt.kind === 'portal') { actionHeld = false; openTravel(); return; }
     if (tgt.kind === 'mob') {
       facing = Math.atan2(tgt.mob.x - hero.position.x, tgt.mob.z - hero.position.z); hero.rotation.y = facing;
+      combatT = 5; swingT = 0; swingTarget = tgt; hitDone = false; return;
+    }
+    if (tgt.kind === 'player') {
+      facing = Math.atan2(tgt.pl.x - hero.position.x, tgt.pl.z - hero.position.z); hero.rotation.y = facing;
       combatT = 5; swingT = 0; swingTarget = tgt; hitDone = false; return;
     }
     const k = KINDS[tgt.kind];
@@ -1075,6 +1087,7 @@
   };
   const hit = tgt => {
     if (tgt.kind === 'mob') { attackHit(tgt.mob, tgt.mult || 1, tgt.ability); return; }
+    if (tgt.kind === 'player') { attackPlayer(tgt.pl, tgt.mult || 1, tgt.ability); return; }
     const k = KINDS[tgt.kind], tier = S.tools[k.tool];
     trainSkill(tgt.kind, 1);
     if (tgt.node) {
@@ -1126,6 +1139,7 @@
     else if (tgt.kind === 'shop') { key = 'shop' + tgt.shop.id; icon = '🛒'; label = 'Handeln'; }
     else if (tgt.kind === 'portal') { key = 'portal'; icon = '🧭'; label = 'Reisen'; }
     else if (tgt.kind === 'mob') { const w = S.gear.weapon && GEAR[S.gear.weapon]; key = 'mob' + (w ? w.e : ''); icon = w ? w.e : '👊'; label = 'Angreifen'; }
+    else if (tgt.kind === 'player') { key = 'pl'; icon = '⚔️'; label = 'Duell'; }
     else {
       const k = KINDS[tgt.kind];
       if (swingT < 0) setTool(k.tool);
@@ -1137,10 +1151,11 @@
       $('actIcon').textContent = icon; $('actLabel').textContent = label;
       act.classList.toggle('off', !tgt);
       act.classList.toggle('shop', !!tgt && (tgt.kind === 'shop' || tgt.kind === 'portal'));
-      act.classList.toggle('fight', !!tgt && tgt.kind === 'mob');
+      act.classList.toggle('fight', !!tgt && (tgt.kind === 'mob' || tgt.kind === 'player'));
     }
     ring.style.strokeDashoffset = tgt && tgt.node ? 289 * Math.max(0, tgt.node.hp / KINDS[tgt.kind].hp)
-      : tgt && tgt.mob ? 289 * (1 - Math.max(0, tgt.mob.hp / tgt.mob.maxHp)) : 289;
+      : tgt && tgt.mob ? 289 * (1 - Math.max(0, tgt.mob.hp / tgt.mob.maxHp))
+        : tgt && tgt.pl ? 289 * (1 - Math.max(0, tgt.pl.hp / tgt.pl.hm)) : 289;
   };
 
   // =====================================================================
@@ -1245,8 +1260,10 @@
     f.classList.add('on');
     vibrate([30, 60, 30]);
     setTimeout(() => {
+      const oldLand = S.land;
       S.land = id; S.visited = S.visited || {}; S.visited[id] = (S.visited[id] || 0) + 1;
       buildLand(id);
+      netLandChanged(oldLand);
       facing = Math.atan2(-portal.front.x, -portal.front.z); hero.rotation.y = facing;
       hero.position.set(portal.front.x + Math.sin(facing) * 2.5, 0, portal.front.z + Math.cos(facing) * 2.5);
       cam.alpha = Math.atan2(-Math.cos(facing), -Math.sin(facing)) + 1.1;
@@ -1464,43 +1481,55 @@
   });
 
   // =====================================================================
-  // Chat (Fenster fertig – Server kommt später)
+  // Chat (Welt, Land, Gruppe) + Spielerliste
   // =====================================================================
-  // Hier wird später ein Server (z. B. Supabase) angeschlossen. Solange ChatNet.connected = false ist,
-  // werden Nachrichten nur auf diesem Gerät gespeichert.
-  const ChatNet = { connected: false, send(channel, msg) { /* später: an Server schicken */ } };
   const CHAT_KEY = 'cimacu-chat-v1';
   let chatData = { world: [] }, chatTab = 'world', lastSend = 0, bubbleUntil = 0;
   try { chatData = JSON.parse(localStorage.getItem(CHAT_KEY)) || chatData; } catch (e) { }
   const BAD = ['arsch', 'idiot', 'scheiß', 'scheiss', 'fick', 'hure', 'wichser', 'fotze', 'bastard', 'spast', 'missgeburt', 'nazi'];
   const clean = t => { let s = t; BAD.forEach(w => { s = s.replace(new RegExp(w, 'gi'), m => '*'.repeat(m.length)); }); return s; };
-  const chatChannels = () => [['world', '🌍 Welt'], [S.land, L.e + ' ' + L.name]];
-  const renderChat = () => {
-    $('chatTabs').innerHTML = chatChannels().map(([id, name]) => `<button data-ch="${id}" class="${chatTab === id ? 'on' : ''}">${name}</button>`).join('');
-    const list = chatData[chatTab] || [];
-    const me = S.hero ? S.hero.name : '';
-    $('chatList').innerHTML = '<div class="msg sys">' + (chatTab === 'world' ? 'Welt-Chat: hier schreiben später alle Spieler.' : 'Orts-Chat: nur für Spieler in diesem Land.') + '</div>' +
-      list.map(m => `<div class="msg${m.n === me ? ' me' : ''}"><span class="who">${CLASSES[m.c] ? CLASSES[m.c].e : ''} ${esc(m.n)}</span>${esc(m.t)}</div>`).join('');
-    const cl = $('chatList'); cl.scrollTop = cl.scrollHeight;
+  const chatChannels = () => {
+    const list = [['world', '🌍 Welt'], [S.land, L.e + ' ' + L.name]];
+    if (party) list.push(['group', '👥 Gruppe']);
+    list.push(['players', '🧑‍🤝‍🧑 Spieler']);
+    return list;
   };
-  $('chatEmoji').innerHTML = ['👋', '😀', '😂', '👍', '❤️', '🔥', '⛏️', '💎', '🪙', '🎉'].map(e => `<button type="button">${e}</button>`).join('');
+  const storeChat = (key, msg) => {
+    (chatData[key] = chatData[key] || []).push(msg);
+    chatData[key] = chatData[key].slice(-60);
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatData)); } catch (err) { }
+  };
+  const renderChat = () => {
+    if (chatTab === 'group' && !party) chatTab = 'world';
+    if (chatTab !== 'world' && chatTab !== 'group' && chatTab !== 'players') chatTab = S.land;
+    $('chatTabs').innerHTML = chatChannels().map(([id, name]) => `<button data-ch="${id}" class="${chatTab === id ? 'on' : ''}">${name}</button>`).join('');
+    $('netInfo').innerHTML = netInfoText();
+    const isPl = chatTab === 'players';
+    $('chatEmoji').style.display = isPl ? 'none' : ''; $('chatForm').style.display = isPl ? 'none' : '';
+    const cl = $('chatList');
+    if (isPl) { cl.innerHTML = renderPlayers(); return; }
+    const list = chatData[chatTab] || [];
+    const sys = chatTab === 'world' ? 'Welt-Chat: alle Spieler in allen Ländern lesen mit.' : chatTab === 'group' ? 'Gruppen-Chat: nur deine Gruppe liest mit.' : 'Orts-Chat: nur Spieler in diesem Land lesen mit.';
+    cl.innerHTML = '<div class="msg sys">' + sys + '</div>' +
+      list.map(m => `<div class="msg${m.me ? ' me' : ''}"><span class="who">${CLASSES[m.c] ? CLASSES[m.c].e : ''} ${esc(m.n)}</span>${esc(m.t)}</div>`).join('');
+    cl.scrollTop = cl.scrollHeight;
+  };
+  $('chatEmoji').innerHTML = ['👋', '😀', '😂', '👍', '❤️', '🔥', '⚔️', '💎', '🤝', '🎉'].map(e => `<button type="button">${e}</button>`).join('');
   $('chatEmoji').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const i = $('chatIn'); i.value = (i.value + b.textContent).slice(0, 120); i.focus(); });
   $('chatTabs').addEventListener('click', e => { const b = e.target.closest('[data-ch]'); if (b) { chatTab = b.dataset.ch; renderChat(); } });
-  $('chatBtn').addEventListener('click', () => { $('chat').hidden = false; if (chatTab !== 'world') chatTab = S.land; renderChat(); });
+  $('chatBtn').addEventListener('click', () => { $('chat').hidden = false; $('chatBtn').classList.remove('dot'); renderChat(); });
   $('chatForm').addEventListener('submit', e => {
     e.preventDefault();
     const i = $('chatIn'); let t = i.value.trim().replace(/\s+/g, ' ');
-    if (!t || !S.hero) return;
+    if (!t || !S.hero || chatTab === 'players') return;
     if (Date.now() - lastSend < 1500) { toast('Bitte nicht so schnell schreiben 🙂'); return; }
     lastSend = Date.now();
     t = clean(t).slice(0, 120);
-    const msg = { n: S.hero.name, c: S.hero.cls, t, ts: Date.now() };
-    (chatData[chatTab] = chatData[chatTab] || []).push(msg);
-    chatData[chatTab] = chatData[chatTab].slice(-60);
-    try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatData)); } catch (err) { }
-    ChatNet.send(chatTab, msg);
+    storeChat(chatTab, { n: S.hero.name, c: S.hero.cls, t, ts: Date.now(), me: 1 });
+    const ch = chatTab === 'world' ? 'world' : chatTab === 'group' ? 'group' : 'land';
+    Net.send(ch === 'land' ? landTopic() : 'welt', { k: 'chat', ch, n: S.hero.name, c: S.hero.cls, t, gid: party ? party.id : '' });
     i.value = ''; renderChat();
-    $('bubble').textContent = t; $('bubble').classList.add('show'); bubbleUntil = performance.now() + 4500;
+    if (ch !== 'group') { $('bubble').textContent = t; $('bubble').classList.add('show'); bubbleUntil = performance.now() + 4500; }
   });
 
   // =====================================================================
@@ -1549,7 +1578,8 @@
     save();
     creating = false; $('create').hidden = true; document.body.classList.remove('creating');
     buildHero(); updateHud();
-    cam.radius = 12; cam.beta = 1.1;
+    cam.radius = zoomR; cam.beta = 1.1;
+    sendPresence(false); lastStKey = ''; sendState(true); if (party) sendParty();
     toast((isNew ? 'Willkommen in Cimacu, ' : 'Neu: ') + esc(name) + '! ' + c.e + ' ' + c.name, true);
     if (isNew) setTimeout(() => toast('🏪 Vorne sind die Händler, rechts das 🧭 Reisetor. Draußen findest du Rohstoffe!'), 3300);
   });
@@ -1560,18 +1590,47 @@
   const stick = $('stick'), knob = $('knob'), hint = $('hint');
   const RJ = 50;
   let joyId = null, joyStart = null, joy = { x: 0, y: 0 }, camId = null, camLast = null;
-  const homeStick = () => { stick.style.left = '90px'; stick.style.top = (window.innerHeight - 110) + 'px'; stick.style.opacity = '.5'; knob.style.transform = ''; };
+  // Zoomen: zwei Finger auseinander/zusammen (oder Mausrad)
+  const ZOOM_MIN = 5, ZOOM_MAX = 24;
+  let zoomR = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +S.zoom || 12)), pinch = null, zoomSaveT = 0;
+  const pts = {};
+  const setZoom = r => { zoomR = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, r)); if (!creating) cam.radius = zoomR; clearTimeout(zoomSaveT); zoomSaveT = setTimeout(() => { S.zoom = +zoomR.toFixed(2); save(); }, 600); };
+  const pinchDist = () => { const [a, b] = pinch.ids.map(id => pts[id]); return Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)); };
+  const startPinch = (a, b) => {
+    pinch = { ids: [a, b] }; pinch.d0 = pinchDist(); pinch.r0 = zoomR;
+    if (joyId === a || joyId === b) { joyId = null; joy = { x: 0, y: 0 }; homeStick(); }
+    camId = null; hint.style.opacity = '0';
+  };
+  const homeStick = () => { stick.style.left = (90 + safeLeft()) + 'px'; stick.style.top = (window.innerHeight - 110) + 'px'; stick.style.opacity = '.5'; knob.style.transform = ''; };
+  const safeLeft = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sal')) || 0;
   homeStick();
   canvas.addEventListener('pointerdown', e => {
     if (creating) return;
     hint.style.opacity = '0';
+    tryLandscape();
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY, t: performance.now(), x0: e.clientX, y0: e.clientY };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
+    if (pinch) return;
+    // Zweiter Finger: mit dem Kamera-Finger oder einem frisch aufgesetzten Lauf-Finger = Zoomen
+    if (camId !== null) { startPinch(camId, e.pointerId); return; }
+    if (joyId !== null) {
+      const j = pts[joyId];
+      if (j && performance.now() - j.t < 350 && Math.hypot(j.x - j.x0, j.y - j.y0) < 14) { startPinch(joyId, e.pointerId); return; }
+    }
     if (e.clientX < window.innerWidth / 2 && joyId === null) {
       joyId = e.pointerId; joyStart = { x: e.clientX, y: e.clientY };
       stick.style.left = e.clientX + 'px'; stick.style.top = e.clientY + 'px'; stick.style.opacity = '1';
     } else if (camId === null) { camId = e.pointerId; camLast = { x: e.clientX, y: e.clientY }; }
-    try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
   });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); setZoom(zoomR * (1 + Math.sign(e.deltaY) * 0.1)); }, { passive: false });
+  // iPhone: eigenes Seiten-Zoomen verhindern
+  ['gesturestart', 'gesturechange'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
   canvas.addEventListener('pointermove', e => {
+    if (pts[e.pointerId]) { pts[e.pointerId].x = e.clientX; pts[e.pointerId].y = e.clientY; }
+    if (pinch) {
+      if (pinch.ids.includes(e.pointerId) && pinch.ids.every(id => pts[id])) setZoom(pinch.r0 * pinch.d0 / pinchDist());
+      return;
+    }
     if (e.pointerId === joyId) {
       let dx = e.clientX - joyStart.x, dy = e.clientY - joyStart.y;
       const len = Math.hypot(dx, dy);
@@ -1585,6 +1644,14 @@
     }
   });
   const release = e => {
+    delete pts[e.pointerId];
+    if (pinch && pinch.ids.includes(e.pointerId)) {
+      // Der übrige Finger dreht danach wieder die Kamera
+      const other = pinch.ids.find(id => id !== e.pointerId);
+      pinch = null;
+      if (pts[other]) { camId = other; camLast = { x: pts[other].x, y: pts[other].y }; }
+      return;
+    }
     if (e.pointerId === joyId) { joyId = null; joy = { x: 0, y: 0 }; homeStick(); }
     if (e.pointerId === camId) camId = null;
   };
@@ -1600,7 +1667,10 @@
     if (k === 'i') { if ($('inv').hidden) openInv('inv'); else $('inv').hidden = true; }
     if (k === 'k') { if ($('inv').hidden) openInv('char'); else $('inv').hidden = true; }
     if (k === 'c') { $('chatBtn').click(); e.preventDefault(); }
+    if (k === '+' || k === '=') setZoom(zoomR * 0.9);
+    if (k === '-') setZoom(zoomR * 1.1);
     if (k === 'escape') ['inv', 'shop', 'travel', 'chat'].forEach(id => { $(id).hidden = true; });
+    if (k === 'p') $('pvpBtn').click();
   });
   window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'e') actionHeld = false; });
 
@@ -1806,7 +1876,10 @@
     S.stats.kills = (S.stats.kills || 0) + 1;
     S.stats['m_' + m.type] = (S.stats['m_' + m.type] || 0) + 1;
     const A = m.A, Lt = TIER_LOOT[A.tier], at = new BABYLON.Vector3(m.x, heightAt(m.x, m.z) + 2, m.z);
-    addXp(A.xp);
+    // Gruppen-Bonus: +20 % Erfahrung, wenn ein Gruppenmitglied in der Nähe ist
+    const pb = partyNear();
+    addXp(Math.round(A.xp * (pb ? 1.2 : 1)));
+    if (pb) setTimeout(() => popText('<span style="color:#7cff6b;font-size:14px">👥 +20 % EP</span>', at), 300);
     const cim = Math.round(rnd(Lt.cim[0], Lt.cim[1]));
     S.money += cim; S.stats.looted = (S.stats.looted || 0) + cim;
     setTimeout(() => popText('+' + cim + ' ' + CIM, at), 150);
@@ -1895,7 +1968,8 @@
     const a = abilityList().find(x => x.id === id); if (!a || S.level < a.lv) return;
     const d = derived(), hp = hero.position;
     const needTarget = ['power', 'fireball', 'poison', 'shadow'].includes(id);
-    const tgt = needTarget ? (id === 'fireball' || id === 'shadow' ? nearestMob(11) : mobInReach() || nearestMob(3.5)) : null;
+    const far = id === 'fireball' || id === 'shadow';
+    const tgt = needTarget ? ((far ? nearestMob(11) : mobInReach() || nearestMob(3.5)) || playerTarget(far ? 11 : 3.5)) : null;
     if (needTarget && !tgt) { toast('Kein Gegner in Reichweite'); return; }
     if (tgt) { facing = Math.atan2(tgt.x - hp.x, tgt.z - hp.z); hero.rotation.y = facing; }
     if (id === 'shadow') {
@@ -1906,12 +1980,13 @@
       burst(bx, heightAt(bx, bz) + 1, bz, '#3a2a5a', 12);
     }
     if (['power', 'poison', 'shadow', 'fireball'].includes(id)) {
-      swingT = 0; hitDone = false; swingTarget = { kind: 'mob', mob: tgt, mult: id === 'power' ? 2 : id === 'fireball' ? 2.2 : id === 'shadow' ? 1.6 : 1, ability: id };
+      const mult = id === 'power' ? 2 : id === 'fireball' ? 2.2 : id === 'shadow' ? 1.6 : 1;
+      swingT = 0; hitDone = false; swingTarget = tgt.isPlayer ? { kind: 'player', pl: tgt, mult, ability: id } : { kind: 'mob', mob: tgt, mult, ability: id };
     }
     if (id === 'wall') { wallT = 6; burst(hp.x, hp.y + 1.5, hp.z, '#5fa8ff', 16); toast('🧱 Schildwall: halber Schaden für 6 Sekunden'); }
     if (id === 'heal') { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.4); burst(hp.x, hp.y + 1.5, hp.z, '#4fd36b', 18); toast('💚 Heilzauber: +' + Math.round(d.hpMax * 0.4) + ' Leben'); updateHud(); }
-    if (id === 'whirl') { spinT = 0.5; mobs.forEach(m => { if (m.alive && Math.hypot(m.x - hp.x, m.z - hp.z) < 3.8) dealDamage(m, d.atk * 1.4); }); burst(hp.x, hp.y + 1, hp.z, '#ffd23f', 18); }
-    if (id === 'frost') { mobs.forEach(m => { if (m.alive && Math.hypot(m.x - hp.x, m.z - hp.z) < 7) { m.frozenT = 3; dealDamage(m, d.atk * 1.3, { color: '#9fe8ff' }); burst(m.x, heightAt(m.x, m.z) + 1, m.z, '#bfefff', 8); } }); burst(hp.x, hp.y + 1, hp.z, '#bfefff', 20); }
+    if (id === 'whirl') { spinT = 0.5; mobs.forEach(m => { if (m.alive && Math.hypot(m.x - hp.x, m.z - hp.z) < 3.8) dealDamage(m, d.atk * 1.4); }); playersNear(3.8).forEach(r => pvpDeal(r, d.atk * 1.4)); burst(hp.x, hp.y + 1, hp.z, '#ffd23f', 18); }
+    if (id === 'frost') { mobs.forEach(m => { if (m.alive && Math.hypot(m.x - hp.x, m.z - hp.z) < 7) { m.frozenT = 3; dealDamage(m, d.atk * 1.3, { color: '#9fe8ff' }); burst(m.x, heightAt(m.x, m.z) + 1, m.z, '#bfefff', 8); } }); playersNear(7).forEach(r => pvpDeal(r, d.atk * 1.3, '#9fe8ff')); burst(hp.x, hp.y + 1, hp.z, '#bfefff', 20); }
     if (id === 'vanish') { invisT = 5; mobs.forEach(m => { if (m.state === 'chase') m.state = 'wander'; }); toast('👻 Unsichtbar für 5 Sekunden'); }
     abCd[id] = a.cd; combatT = 5; vibrate(25);
     updateAbilityUI(); save();
@@ -1966,7 +2041,7 @@
       const tx = m.x, ty = heightAt(m.x, m.z) + 0.9 * m.scale, tz = m.z;
       const dx = tx - s.m.position.x, dy = ty - s.m.position.y, dz = tz - s.m.position.z, dd = Math.hypot(dx, dy, dz);
       const step = 22 * dt;
-      if (dd < step + 0.3) { dealDamage(m, s.dmg, { color: s.kind === 'fire' ? '#ffb02a' : '#e2b8ff' }); burst(tx, ty, tz, s.kind === 'fire' ? '#ff8a2a' : '#c58bff', 10); s.life = 0; s.m.isVisible = false; }
+      if (dd < step + 0.3) { if (m.isPlayer) pvpDeal(m, s.dmg, s.kind === 'fire' ? '#ffb02a' : '#e2b8ff'); else dealDamage(m, s.dmg, { color: s.kind === 'fire' ? '#ffb02a' : '#e2b8ff' }); burst(tx, ty, tz, s.kind === 'fire' ? '#ff8a2a' : '#c58bff', 10); s.life = 0; s.m.isVisible = false; }
       else s.m.position.addInPlaceFromFloats(dx / dd * step, dy / dd * step, dz / dd * step);
     }
     if (paused || deadUntil) return;
@@ -2030,6 +2105,440 @@
     }
     updateMobBar();
   };
+
+  // =====================================================================
+  // Mehrspieler: andere Spieler sehen, Chat, Gruppen, Duelle (PvP)
+  // =====================================================================
+  // Mit Server (config.js ausgefüllt) läuft alles über Supabase Realtime.
+  // Ohne Server = Testmodus: nur Fenster im selben Browser sehen sich (zum Ausprobieren).
+  const CFG = window.CIMACU_CONFIG || {};
+  const MY_ID = Math.random().toString(36).slice(2, 10);
+  const SAFE_R = 15, PARTY_MAX = 4;
+  const sStr = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
+  const sNum = (v, lo, hi) => { v = +v; return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo; };
+  const landTopic = () => 'land-' + S.land;
+  const RP = {};                // andere Spieler im selben Land: id -> Daten + Figur
+  let online = {};              // alle Spieler online: id -> { n, c, lv, land, t }
+  let party = null;             // { id, lead, mem: { id: { n, c, lv } } }
+  let pvpOn = false, pvpT = 0, curPlayer = null, curPlayerT = 0, swingN = 0, wasSwing = false;
+  let stTimer = 0, lastStKey = '', lastStAt = 0, prTimer = 0, netTick = 0, lastPr = 0;
+
+  const Net = {
+    mode: 'off', chans: {}, sb: null,
+    start() {
+      if (CFG.supabaseUrl && CFG.supabaseKey) {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js';
+        s.onload = () => { try { this.sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey); this.mode = 'online'; this.joinAll(); } catch (e) { this.fallback(); } };
+        s.onerror = () => this.fallback();
+        document.head.appendChild(s);
+      } else this.fallback();
+    },
+    fallback() { this.mode = 'BroadcastChannel' in window ? 'test' : 'off'; this.joinAll(); },
+    joinAll() { this.join('welt'); this.join(landTopic()); netUi(); },
+    join(topic) {
+      if (this.chans[topic] || this.mode === 'off') return;
+      if (this.mode === 'online') {
+        const ch = this.sb.channel('cimacu-' + topic, { config: { broadcast: { self: false } } });
+        ch.on('broadcast', { event: 'm' }, msg => onNet(topic, msg.payload));
+        ch.subscribe(st => { if (st === 'SUBSCRIBED') { ch.ready = true; joined(topic); } });
+        this.chans[topic] = ch;
+      } else {
+        const bc = new BroadcastChannel('cimacu-' + topic);
+        bc.onmessage = e => onNet(topic, e.data);
+        bc.ready = true; this.chans[topic] = bc;
+        joined(topic);
+      }
+    },
+    leave(topic) {
+      const c = this.chans[topic]; if (!c) return;
+      delete this.chans[topic];
+      try { if (this.mode === 'online') this.sb.removeChannel(c); else c.close(); } catch (e) { }
+    },
+    send(topic, payload) {
+      const c = this.chans[topic]; if (!c || !c.ready) return;
+      payload.from = MY_ID;
+      try { if (this.mode === 'online') c.send({ type: 'broadcast', event: 'm', payload }); else c.postMessage(payload); } catch (e) { }
+    }
+  };
+  const joined = topic => {
+    if (topic === 'welt') sendPresence(true);
+    else { lastStKey = ''; sendState(true); }
+    netUi();
+  };
+
+  // ---------- Senden ----------
+  const sendPresence = ask => {
+    if (!S.hero) return;
+    lastPr = performance.now();
+    Net.send('welt', { k: 'pr', n: S.hero.name, c: S.hero.cls, lv: S.level, land: S.land, ask: ask ? 1 : 0 });
+  };
+  const sendState = force => {
+    if (!S.hero || !hero || creating) return;
+    const w = S.gear.weapon && GEAR[S.gear.weapon];
+    const p = { k: 'st', n: S.hero.name, c: S.hero.cls, g: S.hero.gender, lv: S.level, x: Math.round(hero.position.x * 20) / 20, z: Math.round(hero.position.z * 20) / 20,
+      ry: Math.round(facing * 20) / 20, hp: Math.max(0, Math.round(S.hp)), hm: derived().hpMax, pvp: pvpOn ? 1 : 0, cl: S.gear.clothes || '', w: w ? w.type : '',
+      gid: party ? party.id : '', sw: swingN, dead: (deadUntil || S.hp <= 0) ? 1 : 0 };
+    const key = JSON.stringify(p), now = performance.now();
+    if (!force && key === lastStKey && now - lastStAt < 2000) return;
+    lastStKey = key; lastStAt = now;
+    Net.send(landTopic(), p);
+  };
+
+  // ---------- Empfangen ----------
+  const onNet = (topic, p) => {
+    if (!p || typeof p !== 'object' || typeof p.from !== 'string' || p.from === MY_ID) return;
+    const id = p.from.slice(0, 12), now = performance.now();
+    const n = clean(sStr(p.n, 16)) || '???', c = CLASSES[p.c] ? p.c : 'fighter';
+    switch (p.k) {
+      case 'st': if (topic === landTopic()) updRemote(id, p, n, c); break;
+      case 'bye': removeRemote(id); break;
+      case 'pr': {
+        const isNew = !online[id];
+        online[id] = { n, c, lv: sNum(p.lv, 1, 999) | 0, land: LANDS[p.land] ? p.land : 'gruen', t: now };
+        if (p.ask && now - lastPr > 1500) setTimeout(() => sendPresence(false), 200 + Math.random() * 800);
+        if (isNew) netUi();
+        break;
+      }
+      case 'chat': {
+        const t = clean(sStr(p.t, 120)); if (!t) return;
+        let key = null;
+        if (p.ch === 'world' && topic === 'welt') key = 'world';
+        else if (p.ch === 'land' && topic === landTopic()) key = S.land;
+        else if (p.ch === 'group' && party && p.gid === party.id && party.mem[id]) key = 'group';
+        if (!key) return;
+        storeChat(key, { n, c, t, ts: Date.now() });
+        if (key === S.land && RP[id]) { RP[id].bubT = t; RP[id].bubUntil = now + 4500; }
+        if (!$('chat').hidden) renderChat(); else $('chatBtn').classList.add('dot');
+        break;
+      }
+      case 'ginv': if (p.to === MY_ID) gotInvite(id, n, sStr(p.gid, 30)); break;
+      case 'gno': if (p.to === MY_ID) toast(esc(n) + ' möchte gerade nicht in deine Gruppe.'); break;
+      case 'gacc': if (p.to === MY_ID) gotAccept(id, n, c, sNum(p.lv, 1, 999) | 0, sStr(p.gid, 30)); break;
+      case 'gupd': gotPartyUpdate(id, p); break;
+      case 'gleave': if (party && party.lead === MY_ID && p.gid === party.id && party.mem[id]) { delete party.mem[id]; toast('👥 ' + esc(n) + ' hat die Gruppe verlassen.'); sendParty(); } break;
+      case 'gdis': if (party && p.gid === party.id && party.lead === id) { party = null; toast('👥 Die Gruppe wurde aufgelöst.'); netUi(); } break;
+      case 'hit': if (p.to === MY_ID && topic === landTopic()) gotHit(id, p); break;
+      case 'kill': if (p.to === MY_ID) gotKill(id, n); break;
+    }
+  };
+
+  // ---------- Andere Spieler darstellen ----------
+  const tagKey = r => r.n + '|' + r.lv + '|' + r.pvp + '|' + (inParty(r.id) ? 1 : 0);
+  const refreshTag = r => {
+    const k = tagKey(r); if (k === r.tagKey) return;
+    r.tagKey = k; disposeTag(r.tag);
+    const bg = inParty(r.id) ? 'rgba(20,110,50,0.85)' : r.pvp ? 'rgba(150,20,30,0.85)' : 'rgba(15,20,45,0.7)';
+    r.tag = makeTag(CLASSES[r.c].e + ' ' + r.n + ' · Lv ' + r.lv, bg);
+    r.tag.parent = r.ch.root;
+  };
+  const buildRemote = r => {
+    if (r.ch) { r.ch.root.dispose(false, false); r.ch.shadow.dispose(); }
+    r.ch = makeCharacter('rp' + r.id, lookFor({ gender: r.g, cls: r.c }, r.cl), null, false);
+    r.lookKey = r.g + r.c + r.cl;
+    // Waffe in der Hand (einfach gehalten)
+    const wn = TN('rpW', r.ch.armR); wn.position.set(0, -0.86, 0.05); wn.rotation.x = Math.PI / 2 - 0.3;
+    if (r.w === 'sword') group('rpSw', [part('box', { width: 0.3, height: 0.06, depth: 0.08 }, '#c9a227', 0, 0.25, 0), part('box', { width: 0.09, height: 0.9, depth: 0.03 }, '#d8dde6', 0, 0.72, 0)], wn);
+    else if (r.w === 'staff') group('rpSt', [part('cyl', { diameter: 0.07, height: 1.8, tessellation: 6 }, '#6b4526', 0, 0.3, 0), part('sph', { diameter: 0.26, segments: 8 }, '#b07aff', 0, 1.25, 0)], wn);
+    else if (r.w === 'dagger') group('rpDg', [part('box', { width: 0.06, height: 0.45, depth: 0.025 }, '#d8dde6', 0, 0.38, 0)], wn);
+    r.ch.root.position.set(r.x, heightAt(r.x, r.z), r.z);
+    r.tagKey = ''; r.tag = null; refreshTag(r);
+  };
+  const updRemote = (id, p, n, c) => {
+    const lim = WORLD + 5;
+    let r = RP[id];
+    const x = sNum(p.x, -lim, lim), z = sNum(p.z, -lim, lim);
+    if (!r) {
+      r = RP[id] = { id, isPlayer: true, alive: true, r: 0.5, scale: 1, x, z, walk: 0, swT: -1, face: 0 };
+      toast('👋 ' + esc(n) + ' ist in der Nähe');
+    }
+    Object.assign(r, { n, c, g: p.g === 'f' ? 'f' : 'm', lv: sNum(p.lv, 1, 999) | 0, tx: x, tz: z, try: sNum(p.ry, -100, 100),
+      hp: sNum(p.hp, 0, 99999), hm: sNum(p.hm, 1, 99999), pvp: !!p.pvp, gid: sStr(p.gid, 30), dead: !!p.dead, t: performance.now(),
+      cl: GEAR[p.cl] && GEAR[p.cl].slot === 'clothes' ? p.cl : '', w: ['sword', 'staff', 'dagger'].includes(p.w) ? p.w : '' });
+    r.alive = !r.dead;
+    if (r.sw !== undefined && p.sw !== r.sw) r.swT = 0;
+    r.sw = p.sw;
+    if (!r.ch || r.lookKey !== r.g + r.c + r.cl || r.wKey !== r.w) { r.wKey = r.w; buildRemote(r); }
+    refreshTag(r);
+  };
+  const removeRemote = id => {
+    const r = RP[id]; if (!r) return;
+    if (r.ch) { r.ch.root.dispose(false, false); r.ch.shadow.dispose(); }
+    disposeTag(r.tag); if (r.bub) r.bub.remove();
+    if (curPlayer === r) curPlayer = null;
+    delete RP[id];
+  };
+  const updateRemotes = (dt, now) => {
+    for (const id in RP) {
+      const r = RP[id];
+      if (now - r.t > 7000) { removeRemote(id); continue; }
+      const k = Math.min(1, dt * 10), ox = r.x, oz = r.z;
+      r.x += (r.tx - r.x) * k; r.z += (r.tz - r.z) * k;
+      const mv = Math.hypot(r.x - ox, r.z - oz) / Math.max(dt, 0.001);
+      r.face += Math.atan2(Math.sin(r.try - r.face), Math.cos(r.try - r.face)) * Math.min(1, dt * 10);
+      const C = r.ch, y = heightAt(r.x, r.z);
+      C.root.position.set(r.x, y, r.z); C.root.rotation.y = r.face;
+      C.root.rotation.z = r.dead ? 1.45 : 0;
+      C.shadow.position.set(r.x, y + 0.06, r.z);
+      const mag = Math.min(1, mv / 6);
+      r.walk += dt * 10 * mag;
+      const sw = Math.sin(r.walk) * 0.75 * mag;
+      C.legL.rotation.x = sw; C.legR.rotation.x = -sw; C.armL.rotation.x = -sw * 0.8;
+      if (r.swT >= 0) {
+        r.swT += dt / 0.45; const t = r.swT;
+        C.armR.rotation.x = t < 0.45 ? -2.5 * (t / 0.45) : t < 0.62 ? -2.5 + 2.1 * ((t - 0.45) / 0.17) : -0.4 * (1 - (t - 0.62) / 0.38);
+        if (t >= 1) { r.swT = -1; C.armR.rotation.x = 0; }
+      } else C.armR.rotation.x = sw * 0.6;
+      // Sprechblase
+      if (r.bubUntil) {
+        if (!r.bub) { r.bub = document.createElement('div'); r.bub.className = 'rbub'; document.body.appendChild(r.bub); }
+        if (now > r.bubUntil) { r.bubUntil = 0; r.bub.classList.remove('show'); }
+        else {
+          const p = toScreen(new BABYLON.Vector3(r.x, y + 4.35, r.z));
+          if (r.bub.textContent !== r.bubT) r.bub.textContent = r.bubT;
+          r.bub.style.left = p.x + 'px'; r.bub.style.top = p.y + 'px'; r.bub.classList.add('show');
+        }
+      }
+    }
+  };
+  const clearRemotes = () => Object.keys(RP).forEach(removeRemote);
+
+  // ---------- Duelle (PvP) ----------
+  const inSafe = (x, z) => Math.hypot(x, z) < SAFE_R;
+  const inParty = id => !!(party && party.mem[id]);
+  const canFight = r => !!(r && pvpOn && r.pvp && !r.dead && S.hp > 0 && !deadUntil && !inParty(r.id) && !inSafe(r.x, r.z) && !inSafe(hero.position.x, hero.position.z));
+  const playerTarget = range => {
+    if (!hero || !pvpOn) return null;
+    const hx = hero.position.x, hz = hero.position.z;
+    let best = null, bd = range;
+    for (const id in RP) { const r = RP[id]; if (!canFight(r)) continue; const d = Math.hypot(r.x - hx, r.z - hz); if (d < bd) { bd = d; best = r; } }
+    return best;
+  };
+  const playersNear = range => Object.values(RP).filter(r => canFight(r) && Math.hypot(r.x - hero.position.x, r.z - hero.position.z) < range);
+  const attackPlayer = (r, mult, ability) => {
+    if (!canFight(r)) return;
+    const dmg = derived().atk * rnd(0.85, 1.15) * mult;
+    if (cls() === 'mage') { fireShot(r, dmg, ability === 'fireball' ? 'fire' : 'bolt'); return; }
+    if (Math.hypot(r.x - hero.position.x, r.z - hero.position.z) > 3.4) { popText('daneben', new BABYLON.Vector3(r.x, heightAt(r.x, r.z) + 2.5, r.z)); return; }
+    pvpDeal(r, dmg); vibrate(20);
+  };
+  const pvpDeal = (r, dmg, color) => {
+    if (!canFight(r)) return;
+    const crit = Math.random() < (cls() === 'spy' ? 0.25 : 0.1);
+    const v = Math.max(1, Math.round(dmg * (crit ? 1.8 : 1)));
+    Net.send(landTopic(), { k: 'hit', to: r.id, dmg: v });
+    popText(`<span style="color:${color || (crit ? '#ffd23f' : '#ffffff')};font-size:${crit ? 24 : 19}px">${crit ? '💥' : ''}${v}</span>`, new BABYLON.Vector3(r.x, heightAt(r.x, r.z) + 3.2, r.z));
+    burst(r.x, heightAt(r.x, r.z) + 1.4, r.z, '#ff5a5a', crit ? 8 : 4);
+    curPlayer = r; curPlayerT = 6; combatT = 5; pvpT = 10;
+  };
+  const gotHit = (id, p) => {
+    const r = RP[id];
+    if (!r || !canFight(r)) return;   // nur echte Duelle zählen
+    const d = derived();
+    const raw = sNum(p.dmg, 0, 150 + r.lv * 80);
+    const dmg = Math.max(1, Math.round(raw * 0.6 * 60 / (60 + d.def * 3) * (wallT > 0 ? 0.5 : 1)));
+    S.hp -= dmg; combatT = 5; pvpT = 10; curPlayer = r; curPlayerT = 6;
+    popText(`<span style="color:#ff5a5a">-${dmg}</span>`, new BABYLON.Vector3(hero.position.x, hero.position.y + 3, hero.position.z));
+    const h = $('hurt'); h.classList.remove('on'); void h.offsetWidth; h.classList.add('on');
+    vibrate(40); updateHud();
+    if (S.hp <= 0) {
+      S.hp = 0; deadUntil = 1; actionHeld = false;
+      Net.send(landTopic(), { k: 'kill', to: id, n: S.hero.name });
+      S.stats.pvpLoss = (S.stats.pvpLoss || 0) + 1;
+      $('deathTxt').innerHTML = `⚔️ ${esc(r.n)} hat dich im Duell besiegt.<br>Bei Duellen verlierst du kein Geld. Du wachst auf dem Marktplatz auf.`;
+      $('death').hidden = false; $('death').dataset.lost = 0;
+      sendState(true); updateHud();
+    }
+  };
+  const gotKill = (id, n) => {
+    S.stats.pvpWins = (S.stats.pvpWins || 0) + 1;
+    toast('🏆 Du hast ' + esc(n) + ' im Duell besiegt!', true);
+    addXp(15 + S.level * 2); vibrate([40, 40, 80]); curPlayer = null; save();
+  };
+  $('pvpBtn').addEventListener('click', () => {
+    if (!S.hero) return;
+    if (pvpOn && pvpT > 0) { toast('⚔️ Mitten im Duell kannst du nicht aufhören – warte ' + Math.ceil(pvpT) + ' Sek.'); return; }
+    pvpOn = !pvpOn;
+    $('pvpBtn').textContent = pvpOn ? '⚔️' : '🕊️';
+    $('pvpBtn').classList.toggle('on', pvpOn);
+    toast(pvpOn ? '⚔️ Duell-Modus AN: Spieler mit ⚔️ können dich angreifen (nicht auf dem Marktplatz).' : '🕊️ Duell-Modus AUS: Niemand kann dich angreifen.', pvpOn);
+    Object.values(RP).forEach(refreshTag);
+    sendState(true);
+  });
+  const updatePlayerBar = () => {
+    const r = curPlayer;
+    if (!r || !RP[r.id] || curPlayerT <= 0 || !mobBar.hidden) return;
+    const p = toScreen(new BABYLON.Vector3(r.x, heightAt(r.x, r.z) + 4.1, r.z));
+    if (p.z < 0 || p.z > 1) return;
+    mobBar.hidden = false; mobBar.style.left = p.x + 'px'; mobBar.style.top = p.y + 'px';
+    mobBar.innerHTML = `<b><span style="background:#c0392b">⚔️</span>${esc(r.n)} · Lv ${r.lv}</b><div class="mb"><i style="width:${Math.max(0, r.hp / r.hm * 100)}%"></i></div>`;
+  };
+
+  // ---------- Gruppen ----------
+  let pendingInvite = null;
+  const newParty = gid => { party = { id: gid, lead: MY_ID, mem: {} }; party.mem[MY_ID] = { n: S.hero.name, c: S.hero.cls, lv: S.level }; };
+  const sendParty = () => {
+    if (!party || party.lead !== MY_ID) return;
+    party.mem[MY_ID] = { n: S.hero.name, c: S.hero.cls, lv: S.level };
+    Net.send('welt', { k: 'gupd', gid: party.id, mem: Object.keys(party.mem).map(id => [id, party.mem[id].n, party.mem[id].c, party.mem[id].lv]) });
+    netUi();
+  };
+  const invitePlayer = id => {
+    const o = online[id]; if (!o || !S.hero) return;
+    if (party && party.lead !== MY_ID) { toast('Nur der Gruppenführer kann einladen.'); return; }
+    if (party && Object.keys(party.mem).length >= PARTY_MAX) { toast('Die Gruppe ist voll (höchstens ' + PARTY_MAX + ').'); return; }
+    Net.send('welt', { k: 'ginv', to: id, n: S.hero.name, gid: party ? party.id : 'g' + MY_ID + Date.now().toString(36) });
+    toast('📨 Einladung an ' + esc(o.n) + ' geschickt');
+  };
+  const gotInvite = (id, n, gid) => {
+    if (!gid) return;
+    if (party) { Net.send('welt', { k: 'gno', to: id, n: S.hero ? S.hero.name : '' }); return; }
+    pendingInvite = { id, n, gid };
+    $('gInvTxt').innerHTML = '👥 <b>' + esc(n) + '</b> lädt dich in eine Gruppe ein';
+    $('gInvite').hidden = false; vibrate([30, 30, 30]);
+    clearTimeout(gotInvite.t); gotInvite.t = setTimeout(() => { $('gInvite').hidden = true; pendingInvite = null; }, 20000);
+  };
+  $('gInvYes').addEventListener('click', () => {
+    const iv = pendingInvite; $('gInvite').hidden = true; pendingInvite = null;
+    if (!iv || party || !S.hero) return;
+    Net.send('welt', { k: 'gacc', to: iv.id, n: S.hero.name, c: S.hero.cls, lv: S.level, gid: iv.gid });
+    toast('Warte auf ' + esc(iv.n) + ' …');
+  });
+  $('gInvNo').addEventListener('click', () => {
+    const iv = pendingInvite; $('gInvite').hidden = true; pendingInvite = null;
+    if (iv) Net.send('welt', { k: 'gno', to: iv.id, n: S.hero ? S.hero.name : '' });
+  });
+  const gotAccept = (id, n, c, lv, gid) => {
+    if (!S.hero) return;
+    if (!party) newParty(gid);
+    if (party.lead !== MY_ID || party.id !== gid) return;
+    if (Object.keys(party.mem).length >= PARTY_MAX) { toast('Die Gruppe ist schon voll.'); return; }
+    party.mem[id] = { n, c, lv };
+    toast('👥 ' + esc(n) + ' ist jetzt in deiner Gruppe!', true);
+    sendParty();
+  };
+  const gotPartyUpdate = (id, p) => {
+    if (!Array.isArray(p.mem)) return;
+    const gid = sStr(p.gid, 30);
+    const mem = {};
+    p.mem.slice(0, PARTY_MAX).forEach(m => { if (Array.isArray(m) && typeof m[0] === 'string') mem[m[0].slice(0, 12)] = { n: clean(sStr(m[1], 16)), c: CLASSES[m[2]] ? m[2] : 'fighter', lv: sNum(m[3], 1, 999) | 0 }; });
+    if (mem[MY_ID]) {
+      const fresh = !party || party.id !== gid;
+      if (party && party.id !== gid) return;   // schon in einer anderen Gruppe
+      party = { id: gid, lead: id, mem };
+      if (fresh) toast('👥 Du bist jetzt in der Gruppe von ' + esc(mem[id] ? mem[id].n : '?') + '!', true);
+      Object.values(RP).forEach(refreshTag); netUi();
+    } else if (party && party.id === gid && party.lead === id) {
+      party = null; toast('👥 Du bist nicht mehr in der Gruppe.'); Object.values(RP).forEach(refreshTag); netUi();
+    }
+  };
+  const leaveParty = () => {
+    if (!party) return;
+    if (party.lead === MY_ID) Net.send('welt', { k: 'gdis', gid: party.id });
+    else Net.send('welt', { k: 'gleave', gid: party.id });
+    party = null; toast('👥 Du hast die Gruppe verlassen.');
+    Object.values(RP).forEach(refreshTag); netUi();
+  };
+  const kickMember = id => { if (party && party.lead === MY_ID && party.mem[id]) { delete party.mem[id]; sendParty(); } };
+  const partyNear = () => !!party && Object.values(RP).some(r => party.mem[r.id] && !r.dead && Math.hypot(r.x - hero.position.x, r.z - hero.position.z) < 30);
+
+  // ---------- Anzeigen ----------
+  const netInfoText = () => {
+    const n = Object.keys(online).length;
+    if (Net.mode === 'online') return `🟢 <b>Online</b> – ${n ? n + ' andere Spieler' : 'gerade sonst niemand'} da`;
+    if (Net.mode === 'test') return `🧪 <b>Testmodus</b> – noch kein Server verbunden. Andere Spieler siehst du nur in einem 2. Fenster auf diesem Gerät.${n ? ' (' + n + ' da)' : ''}`;
+    return '🔌 Offline – andere Spieler sind nicht verfügbar.';
+  };
+  const renderPlayers = () => {
+    let h = '';
+    if (party) {
+      h += `<div class="pbox"><b>👥 Deine Gruppe</b> <small>(${Object.keys(party.mem).length}/${PARTY_MAX} · +20 % EP, wenn ihr zusammen jagt)</small>`;
+      h += Object.keys(party.mem).map(id => {
+        const m = party.mem[id], me = id === MY_ID, lead = party.lead === id;
+        const kick = party.lead === MY_ID && !me ? `<button class="alt" data-kick="${esc(id)}">Entfernen</button>` : '';
+        return `<div class="prow"><span>${CLASSES[m.c].e} <b>${esc(m.n)}</b> · Lv ${m.lv}${lead ? ' 👑' : ''}${me ? ' (du)' : ''}</span>${kick}</div>`;
+      }).join('');
+      h += `<button class="wide leave" data-leave="1">${party.lead === MY_ID ? 'Gruppe auflösen' : 'Gruppe verlassen'}</button></div>`;
+    }
+    const ids = Object.keys(online).sort((a, b) => online[b].lv - online[a].lv);
+    h += `<h4>Online (${ids.length})</h4>`;
+    if (!ids.length) h += '<div class="empty">Gerade ist niemand sonst online.</div>';
+    h += ids.map(id => {
+      const o = online[id], l = LANDS[o.land];
+      let btn;
+      if (inParty(id)) btn = '<span class="tag">✔ Gruppe</span>';
+      else if (party && party.lead !== MY_ID) btn = '';
+      else btn = `<button data-invite="${esc(id)}">Einladen</button>`;
+      return `<div class="row"><div class="e">${CLASSES[o.c].e}</div><div class="t"><b>${esc(o.n)}</b><small>Level ${o.lv} · ${l.e} ${l.name}</small></div>${btn}</div>`;
+    }).join('');
+    return h;
+  };
+  $('chatList').addEventListener('click', e => {
+    const inv = e.target.closest('[data-invite]'); if (inv) { invitePlayer(inv.dataset.invite); return; }
+    const k = e.target.closest('[data-kick]'); if (k) { kickMember(k.dataset.kick); renderChat(); return; }
+    if (e.target.closest('[data-leave]')) { leaveParty(); renderChat(); }
+  });
+  const netUi = () => {
+    const n = Object.keys(online).length;
+    $('onlineCnt').textContent = n ? n : '';
+    $('onlineCnt').hidden = !n;
+    // Gruppen-Leiste oben
+    if (party) {
+      $('party').hidden = false;
+      $('party').innerHTML = Object.keys(party.mem).filter(id => id !== MY_ID).map(id => {
+        const m = party.mem[id], r = RP[id], hpw = r ? Math.max(0, r.hp / r.hm * 100) : 0;
+        return `<div class="pm${r ? '' : ' far'}"><span>${CLASSES[m.c].e} ${esc(m.n)}</span><i><b style="width:${hpw}%"></b></i></div>`;
+      }).join('') || '<div class="pm"><span>👥 Gruppe: nur du</span></div>';
+    } else $('party').hidden = true;
+    if (!$('chat').hidden) renderChat();
+  };
+  const netLandChanged = oldLand => {
+    Net.send('land-' + oldLand, { k: 'bye' });
+    Net.leave('land-' + oldLand);
+    clearRemotes();
+    Net.join(landTopic());
+    sendPresence(false);
+  };
+
+  // Jedes Bild: senden, aufräumen
+  const updateNet = (dt, now) => {
+    if (Net.mode === 'off') return;
+    if (swingT >= 0 && !wasSwing) swingN = (swingN + 1) % 1000;
+    wasSwing = swingT >= 0;
+    pvpT = Math.max(0, pvpT - dt); curPlayerT = Math.max(0, curPlayerT - dt);
+    stTimer -= dt; if (stTimer <= 0) { stTimer = 0.2; sendState(false); }
+    prTimer -= dt; if (prTimer <= 0) { prTimer = 8; sendPresence(false); }
+    updateRemotes(dt, now);
+    netTick -= dt;
+    if (netTick <= 0) {
+      netTick = 1;
+      let changed = false;
+      for (const id in online) if (now - online[id].t > 25000) { delete online[id]; changed = true; }
+      if (party) {
+        if (party.lead === MY_ID) {
+          let gone = false;
+          Object.keys(party.mem).forEach(id => { if (id !== MY_ID && !online[id]) { delete party.mem[id]; gone = true; } });
+          if (gone) sendParty();
+        } else if (!online[party.lead]) { party = null; toast('👥 Der Gruppenführer ist offline – Gruppe beendet.'); changed = true; }
+      }
+      if (changed || party) netUi();
+    }
+  };
+  window.addEventListener('pagehide', () => { Net.send(landTopic(), { k: 'bye' }); });
+
+  // =====================================================================
+  // Querformat
+  // =====================================================================
+  let triedLandscape = false;
+  function tryLandscape() {
+    if (triedLandscape || !matchMedia('(pointer: coarse)').matches) return;
+    triedLandscape = true;
+    const lock = () => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => { }); } catch (e) { } };
+    const el = document.documentElement;
+    try { if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen({ navigationUI: 'hide' }).then(lock).catch(lock); else lock(); } catch (e) { lock(); }
+  }
+  $('rotate').addEventListener('click', () => { triedLandscape = false; tryLandscape(); });
+
   // =====================================================================
   // Spiel-Schleife
   // =====================================================================
@@ -2149,6 +2658,9 @@
     if (snow) snow.emitter.set(hero.position.x, hero.position.y + 14, hero.position.z);
 
     // Kamera (beim Erstellen nah vor der Figur)
+    // Im Querformat beim Erstellen die Figur nach links schieben (rechts ist das Formular)
+    const wantOff = creating && window.innerWidth > window.innerHeight ? -window.innerWidth * 0.004 : 0;
+    cam.targetScreenOffset.x += (wantOff - cam.targetScreenOffset.x) * Math.min(1, dt * 6);
     if (creating) {
       tmpV.set(hero.position.x, hero.position.y - 0.4, hero.position.z);
       cam.alpha += (-Math.PI / 2 - cam.alpha) * Math.min(1, dt * 4);
@@ -2166,6 +2678,8 @@
     }
 
     updateCombat(dt, now, uiOpen);
+    updateNet(dt, now);
+    updatePlayerBar();
     regenTimer += dt;
     if (regenTimer > 1) { regenTimer = 0; S.played = (S.played || 0) + 1; if (S.hp < d.hpMax && S.hp > 0 && combatT <= 0) { S.hp = Math.min(d.hpMax, S.hp + d.hpMax * 0.02); updateHud(); } }
     uiTimer -= dt;
@@ -2188,7 +2702,9 @@
   hero.position.set(-2.5, 0, -6);
   updatePotBtn();
   updateHud();
+  cam.radius = zoomR;
   if (!S.hero) { previewCreate(); openCreate(); }
+  Net.start();
   engine.runRenderLoop(() => scene.render());
   window.addEventListener('resize', () => { engine.resize(); if (joyId === null) homeStick(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
